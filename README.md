@@ -80,7 +80,7 @@ This AppImage works with fuse3 and does not require fuse2.
 
 This is an unofficial build. For official releases and support, please refer to the mpv project.
 
-This repository contains a script for building the Claws-Mail-4.3.0-x86_64.AppImage.
+This repository contains a script for building the mpv-x86_64.AppImage.
 The script was created with assistance from Grok 3, an AI developed by xAI (https://grok.com).
 While efforts have been made to ensure the script functions correctly, it is provided "as is" without any warranties
 or guarantees of performance, reliability, or compatibility. Users are responsible for testing and verifying the script's output before use.
