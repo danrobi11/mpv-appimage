@@ -1,5 +1,7 @@
 # Unofficial mpv v0.39.0 AppImage
 
+![MPV Logo](https://mpv.io/images/mpv-logo-128-0baae5aa.png) 
+
 This repository provides an **unofficial AppImage** of [mpv v0.39.0](https://github.com/mpv-player/mpv/releases/tag/v0.39.0), a free and open-source media player known for its versatility and performance.
 
 ✅ **Perfect for minimalist enthusiasts** – built against **ALSA**, **FFmpeg**, and **OpenGL** for a lightweight, systemd-free experience.
@@ -72,6 +74,11 @@ For example, to play a video:
 
 *Disclaimer: This is an unofficial build. For official releases and support, please refer to the [mpv project](https://mpv.io/).*
 
+This repository contains a script for building the Claws-Mail-4.3.0-x86_64.AppImage.
+The script was created with assistance from Grok 3, an AI developed by xAI (https://grok.com).
+While efforts have been made to ensure the script functions correctly, it is provided "as is" without any warranties
+or guarantees of performance, reliability, or compatibility. Users are responsible for testing and verifying the script's output before use.
+Neither the repository owner nor xAI is liable for any issues, damages, or data loss that may arise from using this script or the resulting AppImage.
 ---
 
 *This README is based on information available as of March 14, 2025.*
