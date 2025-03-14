@@ -69,8 +69,6 @@ This AppImage bundles all necessary dependencies and should run on most Linux di
 
 Compatibility with AppImageLauncher may vary. Consider using AM instead.
 
-This AppImage works with fuse3 and does not require fuse2.
-
 ### Acknowledgments
 
 - **mpv**: [Official Repository](https://github.com/mpv-player/mpv)
