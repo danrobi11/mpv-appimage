@@ -5,6 +5,7 @@
 This repository provides an **unofficial AppImage** of [mpv v0.39.0](https://github.com/mpv-player/mpv/releases/tag/v0.39.0), a free and open-source media player known for its versatility and performance.
 
 ✅ **Perfect for minimalist enthusiasts** – built against **ALSA**, **FFmpeg**, and **OpenGL** for a lightweight, systemd-free experience. **Vulkan is not required.**
+This AppImage is built against FUSE 3.x for filesystem support.
 
 ## Key Features of mpv v0.39.0
 
@@ -68,8 +69,6 @@ Example usage:
 This AppImage bundles all necessary dependencies and should run on most Linux distributions, including those based on musl.
 
 Compatibility with AppImageLauncher may vary. Consider using AM instead.
-
-This AppImage is built against FUSE 3.x for filesystem support.
 
 ### Acknowledgments
 
