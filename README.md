@@ -69,6 +69,8 @@ This AppImage bundles all necessary dependencies and should run on most Linux di
 
 Compatibility with AppImageLauncher may vary. Consider using AM instead.
 
+This AppImage is built against FUSE 3.x for filesystem support.
+
 ### Acknowledgments
 
 - **mpv**: [Official Repository](https://github.com/mpv-player/mpv)
