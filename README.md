@@ -68,7 +68,7 @@ Example usage:
 
 This AppImage bundles all necessary dependencies and should run on most Linux distributions, including those based on musl.
 
-Compatibility with AppImageLauncher may vary. Consider using AM instead.
+Compatibility with AppImageLauncher may vary. Consider using [AM](https://github.com/ivan-hc/AM) instead.
 
 ### Acknowledgments
 
