@@ -64,7 +64,9 @@ Example usage:
 
 ## Notes & Acknowledgments
 
-✅ Minimalist Build: Built against ALSA, FFmpeg, and OpenGL for lightweight usage. Vulkan is not required.
+✅ Minimalist Build: 
+
+Built against ALSA, FFmpeg, and OpenGL for lightweight usage. Vulkan is not required.
 
 This AppImage bundles all necessary dependencies and should run on most Linux distributions, including those based on musl.
 
