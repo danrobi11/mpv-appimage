@@ -1,4 +1,4 @@
-# Unofficial mpv v0.39.0 AppImage
+# Unofficial mpv AppImage
 
 ![MPV Logo](https://mpv.io/images/mpv-logo-128-0baae5aa.png)
 
