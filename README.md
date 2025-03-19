@@ -86,5 +86,3 @@ The script was created with assistance from Grok 3, an AI developed by xAI (http
 While efforts have been made to ensure the script functions correctly, it is provided "as is" without any warranties
 or guarantees of performance, reliability, or compatibility. Users are responsible for testing and verifying the script's output before use.
 Neither the repository owner nor xAI is liable for any issues, damages, or data loss that may arise from using this script or the resulting AppImage.
-
-*This README is based on information available as of March 14, 2025.*
