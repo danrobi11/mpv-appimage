@@ -1,0 +1,157 @@
+name: Build MPV AppImage
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout the repository
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Install system dependencies
+      - name: Install system packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential git meson ninja-build pkg-config libssl-dev libx11-dev libxext-dev libxpresent-dev libxss-dev libvulkan-dev nasm
+
+      # Set up environment variables
+      - name: Set environment variables
+        run: |
+          echo "BASE_DIR=$GITHUB_WORKSPACE" >> $GITHUB_ENV
+          echo "APPDIR=$GITHUB_WORKSPACE/AppDir" >> $GITHUB_ENV
+          echo "BUILD_LIBS_DIR=$GITHUB_WORKSPACE/build_libs" >> $GITHUB_ENV
+          echo "OUTPUT_APPIMAGE=$GITHUB_WORKSPACE/mpv-x86_64.AppImage" >> $GITHUB_ENV
+          echo "LINUXDEPLOY_URL=https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage" >> $GITHUB_ENV
+          echo "PKG_CONFIG_PATH=$GITHUB_WORKSPACE/build_libs/lib/pkgconfig:$GITHUB_WORKSPACE/build_libs/lib/x86_64-linux-gnu/pkgconfig:$PKG_CONFIG_PATH" >> $GITHUB_ENV
+
+      # Create directories
+      - name: Create directories
+        run: |
+          mkdir -p "${{ env.BUILD_LIBS_DIR }}" "${{ env.APPDIR }}"
+
+      # Clone repositories
+      - name: Clone libass
+        run: |
+          if [ -d "libass/.git" ]; then
+            cd libass && git reset --hard && git pull && cd ..
+          else
+            git clone https://github.com/libass/libass.git
+          fi
+
+      - name: Clone FFmpeg
+        run: |
+          if [ -d "ffmpeg/.git" ]; then
+            cd ffmpeg && git reset --hard && git pull && cd .. 
+          else
+            git clone https://github.com/FFmpeg/FFmpeg.git ffmpeg
+          fi
+
+      - name: Clone libplacebo
+        run: |
+          if [ -d "libplacebo/.git" ]; then
+            cd libplacebo && git reset --hard && git pull && cd ..
+          else
+            git clone https://github.com/haasn/libplacebo.git
+          fi
+
+      - name: Clone MPV
+        run: |
+          if [ -d "mpv/.git" ]; then
+            cd mpv && git reset --hard && git pull && cd ..
+          else
+            git clone https://github.com/mpv-player/mpv.git
+          fi
+
+      # Build libass
+      - name: Build libass
+        run: |
+          cd libass
+          ./autogen.sh
+          ./configure --prefix="${{ env.BUILD_LIBS_DIR }}"
+          make -j$(nproc)
+          make install
+          cd ..
+
+      # Build FFmpeg
+      - name: Build FFmpeg
+        run: |
+          cd ffmpeg
+          ./configure --prefix="${{ env.BUILD_LIBS_DIR }}" --enable-gpl --enable-libass --enable-openssl --enable-version3
+          make -j$(nproc)
+          make install
+          cd ..
+
+      # Build libplacebo
+      - name: Build libplacebo
+        run: |
+          cd libplacebo
+          git submodule update --init
+          rm -rf build
+          meson setup build -Dprefix="${{ env.BUILD_LIBS_DIR }}" -Dbuildtype=release
+          meson compile -C build
+          meson install -C build
+          cd ..
+
+      # Build MPV
+      - name: Build MPV
+        run: |
+          cd mpv
+          meson setup build \
+            -Dx11=enabled \
+            -Dwayland=disabled \
+            -Dlibmpv=false \
+            -Dvapoursynth=disabled \
+            -Dpulse=disabled \
+            -Dalsa=enabled \
+            -Dbuildtype=release \
+            -Dprefix=/usr \
+            -Dc_link_args="-L${{ env.BUILD_LIBS_DIR }}/lib -L${{ env.BUILD_LIBS_DIR }}/lib/x86_64-linux-gnu" \
+            -Dc_args="-I${{ env.BUILD_LIBS_DIR }}/include"
+          meson compile -C build
+          meson install -C build --destdir "${{ env.APPDIR }}"
+          cd ..
+
+      # Create .desktop file
+      - name: Create MPV desktop file
+        run: |
+          mkdir -p "${{ env.APPDIR }}/usr/share/applications"
+          cat > "${{ env.APPDIR }}/usr/share/applications/mpv.desktop" <<EOF
+          [Desktop Entry]
+          Name=mpv Media Player
+          Exec=mpv %U
+          Icon=mpv
+          Type=Application
+          Categories=AudioVideo;Player;Video;
+          EOF
+
+      # Download linuxdeploy
+      - name: Download linuxdeploy
+        run: |
+          wget -q "${{ env.LINUXDEPLOY_URL }}" -O linuxdeploy-x86_64.AppImage
+          chmod +x linuxdeploy-x86_64.AppImage
+
+      # Create AppImage
+      - name: Create AppImage
+        run: |
+          LD_LIBRARY_PATH="${{ env.BUILD_LIBS_DIR }}/lib:${{ env.BUILD_LIBS_DIR }}/lib/x86_64-linux-gnu" \
+          ./linuxdeploy-x86_64.AppImage \
+            --appdir "${{ env.APPDIR }}" \
+            --output appimage \
+            --desktop-file "${{ env.APPDIR }}/usr/share/applications/mpv.desktop"
+          mv mpv*.AppImage "${{ env.OUTPUT_APPIMAGE }}"
+
+      # Upload AppImage artifact
+      - name: Upload AppImage
+        uses: actions/upload-artifact@v4
+        with:
+          name: mpv-appimage
+          path: ${{ env.OUTPUT_APPIMAGE }}
