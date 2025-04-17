@@ -41,7 +41,8 @@ jobs:
             libxkbcommon-dev \
             libxrandr-dev \
             libxinerama-dev \
-            libgl1-mesa-dev
+            libgl1-mesa-dev \
+            libasound2-dev
 
       # Set up environment variables
       - name: Set environment variables
@@ -146,18 +147,34 @@ jobs:
           # Copy shared libraries from build_libs to portable lib directory
           find "${{ env.BUILD_LIBS_DIR }}/lib" "${{ env.BUILD_LIBS_DIR }}/lib/x86_64-linux-gnu" -name "*.so*" -exec cp {} "${{ env.PORTABLE_DIR }}/lib/" \;
           # Copy system libraries for runtime dependencies
-          for lib in libfreetype.so libfontconfig.so libfribidi.so libharfbuzz.so libxkbcommon.so libxrandr.so libxinerama.so libgl.so; do
+          for lib in libfreetype.so libfontconfig.so libfribidi.so libharfbuzz.so libxkbcommon.so libxrandr.so libxinerama.so libgl.so libasound.so; do
             find /usr/lib /usr/lib/x86_64-linux-gnu -name "$lib*" -exec cp {} "${{ env.PORTABLE_DIR }}/lib/" \;
           done
           # Verify dynamic linking
           ldd "${{ env.PORTABLE_DIR }}/bin/mpv"
 
-      # Create a wrapper script to set LD_LIBRARY_PATH
+      # Create a runtime setup script
+      - name: Create runtime setup script
+        run: |
+          cat > "${{ env.PORTABLE_DIR }}/bin/setup-runtime.sh" <<EOF
+          #!/bin/bash
+          # Create /run/user/$UID if it doesn't exist
+          if [ ! -d "/run/user/\${UID}" ]; then
+            mkdir -p "/run/user/\${UID}"
+            chmod 700 "/run/user/\${UID}"
+          fi
+          EOF
+          chmod +x "${{ env.PORTABLE_DIR }}/bin/setup-runtime.sh"
+
+      # Create a wrapper script to set LD_LIBRARY_PATH and run setup
       - name: Create wrapper script
         run: |
           cat > "${{ env.PORTABLE_DIR }}/bin/mpv-wrapper.sh" <<EOF
           #!/bin/bash
           SCRIPT_DIR=\$(dirname "\$(readlink -f "\$0")")
+          # Run runtime setup script
+          "\$SCRIPT_DIR/setup-runtime.sh"
+          # Launch MPV with bundled libraries
           LD_LIBRARY_PATH="\$SCRIPT_DIR/../lib:\$LD_LIBRARY_PATH" "\$SCRIPT_DIR/mpv" "\$@"
           EOF
           chmod +x "${{ env.PORTABLE_DIR }}/bin/mpv-wrapper.sh"
