@@ -42,7 +42,11 @@ jobs:
             libxrandr-dev \
             libxinerama-dev \
             libgl1-mesa-dev \
-            libasound2-dev
+            libasound2-dev \
+            zlib1g-dev \
+            libpng-dev \
+            libbrotli-dev \
+            libglib2.0-dev
 
       # Set up environment variables
       - name: Set environment variables
@@ -134,7 +138,8 @@ jobs:
             -Dbuildtype=release \
             -Dprefix=/usr \
             -Dc_link_args="-L${{ env.BUILD_LIBS_DIR }}/lib -L${{ env.BUILD_LIBS_DIR }}/lib/x86_64-linux-gnu" \
-            -Dc_args="-I${{ env.BUILD_LIBS_DIR }}/include"
+            -Dc_args="-I${{ env.BUILD_LIBS_DIR }}/include" \
+            -Ddesktop-files=disabled
           meson compile -C build
           meson install -C build --destdir "${{ env.PORTABLE_DIR }}"
           cd ..
@@ -144,11 +149,21 @@ jobs:
         run: |
           # Copy MPV binary to portable bin directory
           cp "${{ env.PORTABLE_DIR }}/usr/bin/mpv" "${{ env.PORTABLE_DIR }}/bin/"
-          # Copy shared libraries from build_libs to portable lib directory
+          # Copy all shared libraries from build_libs to portable lib directory
           find "${{ env.BUILD_LIBS_DIR }}/lib" "${{ env.BUILD_LIBS_DIR }}/lib/x86_64-linux-gnu" -name "*.so*" -exec cp {} "${{ env.PORTABLE_DIR }}/lib/" \;
+          # Copy specific shared libraries from build_libs explicitly
+          for lib in libass.so libplacebo.so; do
+            find "${{ env.BUILD_LIBS_DIR }}/lib" "${{ env.BUILD_LIBS_DIR }}/lib/x86_64-linux-gnu" -name "$lib*" -exec cp {} "${{ env.PORTABLE_DIR }}/lib/" \;
+          done
           # Copy system libraries for runtime dependencies
-          for lib in libfreetype.so libfontconfig.so libfribidi.so libharfbuzz.so libxkbcommon.so libxrandr.so libxinerama.so libgl.so libasound.so libXss.so libXpresent.so libvulkan.so; do
+          for lib in libfreetype.so libfontconfig.so libfribidi.so libharfbuzz.so libgraphite2.so libxkbcommon.so libxrandr.so libxinerama.so libgl.so libasound.so libXss.so libXpresent.so libvulkan.so libz.so libpthread.so libc.so libpng.so libbrotli.so libglib-2.0.so libXau.so libXdmcp.so libXrender.so libGLdispatch.so libbsd.so libmd.so; do
             find /usr/lib /usr/lib/x86_64-linux-gnu -name "$lib*" -exec cp {} "${{ env.PORTABLE_DIR }}/lib/" \;
+          done
+          # Copy all dependencies identified by ldd
+          ldd "${{ env.PORTABLE_DIR }}/bin/mpv" | grep -oP '(?<=> )[^ ]+' | while read -r lib; do
+            if [ -f "$lib" ]; then
+              cp "$lib" "${{ env.PORTABLE_DIR }}/lib/"
+            fi
           done
           # Verify dynamic linking
           ldd "${{ env.PORTABLE_DIR }}/bin/mpv"
