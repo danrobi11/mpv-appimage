@@ -138,11 +138,20 @@ jobs:
             -Dbuildtype=release \
             -Dprefix=/usr \
             -Dc_link_args="-L${{ env.BUILD_LIBS_DIR }}/lib -L${{ env.BUILD_LIBS_DIR }}/lib/x86_64-linux-gnu" \
-            -Dc_args="-I${{ env.BUILD_LIBS_DIR }}/include" \
-            -Ddesktop-files=disabled
+            -Dc_args="-I${{ env.BUILD_LIBS_DIR }}/include"
           meson compile -C build
           meson install -C build --destdir "${{ env.PORTABLE_DIR }}"
           cd ..
+
+      # Remove unnecessary desktop files and related assets
+      - name: Remove desktop files and assets
+        run: |
+          rm -rf "${{ env.PORTABLE_DIR }}/usr/share/applications" \
+                 "${{ env.PORTABLE_DIR }}/usr/share/icons" \
+                 "${{ env.PORTABLE_DIR }}/usr/share/metainfo" \
+                 "${{ env.PORTABLE_DIR }}/usr/share/bash-completion" \
+                 "${{ env.PORTABLE_DIR }}/usr/share/zsh" \
+                 "${{ env.PORTABLE_DIR }}/usr/share/fish"
 
       # Collect shared libraries
       - name: Collect shared libraries
