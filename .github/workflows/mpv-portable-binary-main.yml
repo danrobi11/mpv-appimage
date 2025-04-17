@@ -147,7 +147,7 @@ jobs:
           # Copy shared libraries from build_libs to portable lib directory
           find "${{ env.BUILD_LIBS_DIR }}/lib" "${{ env.BUILD_LIBS_DIR }}/lib/x86_64-linux-gnu" -name "*.so*" -exec cp {} "${{ env.PORTABLE_DIR }}/lib/" \;
           # Copy system libraries for runtime dependencies
-          for lib in libfreetype.so libfontconfig.so libfribidi.so libharfbuzz.so libxkbcommon.so libxrandr.so libxinerama.so libgl.so libasound.so; do
+          for lib in libfreetype.so libfontconfig.so libfribidi.so libharfbuzz.so libxkbcommon.so libxrandr.so libxinerama.so libgl.so libasound.so libXss.so; do
             find /usr/lib /usr/lib/x86_64-linux-gnu -name "$lib*" -exec cp {} "${{ env.PORTABLE_DIR }}/lib/" \;
           done
           # Verify dynamic linking
@@ -158,10 +158,15 @@ jobs:
         run: |
           cat > "${{ env.PORTABLE_DIR }}/bin/setup-runtime.sh" <<EOF
           #!/bin/bash
-          # Create /run/user/$UID if it doesn't exist
-          if [ ! -d "/run/user/\${UID}" ]; then
-            mkdir -p "/run/user/\${UID}"
-            chmod 700 "/run/user/\${UID}"
+          # Check if /run/user/\$UID exists and is writable
+          if [ -d "/run/user/\${UID}" ] && [ -w "/run/user/\${UID}" ]; then
+            export XDG_RUNTIME_DIR="/run/user/\${UID}"
+          else
+            # Fallback to ~/.cache/mpv-run
+            XDG_RUNTIME_DIR="\$HOME/.cache/mpv-run"
+            mkdir -p "\$XDG_RUNTIME_DIR"
+            chmod 700 "\$XDG_RUNTIME_DIR"
+            export XDG_RUNTIME_DIR
           fi
           EOF
           chmod +x "${{ env.PORTABLE_DIR }}/bin/setup-runtime.sh"
