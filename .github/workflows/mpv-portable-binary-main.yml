@@ -147,7 +147,7 @@ jobs:
           # Copy shared libraries from build_libs to portable lib directory
           find "${{ env.BUILD_LIBS_DIR }}/lib" "${{ env.BUILD_LIBS_DIR }}/lib/x86_64-linux-gnu" -name "*.so*" -exec cp {} "${{ env.PORTABLE_DIR }}/lib/" \;
           # Copy system libraries for runtime dependencies
-          for lib in libfreetype.so libfontconfig.so libfribidi.so libharfbuzz.so libxkbcommon.so libxrandr.so libxinerama.so libgl.so libasound.so libXss.so; do
+          for lib in libfreetype.so libfontconfig.so libfribidi.so libharfbuzz.so libxkbcommon.so libxrandr.so libxinerama.so libgl.so libasound.so libXss.so libXpresent.so; do
             find /usr/lib /usr/lib/x86_64-linux-gnu -name "$lib*" -exec cp {} "${{ env.PORTABLE_DIR }}/lib/" \;
           done
           # Verify dynamic linking
