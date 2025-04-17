@@ -21,7 +21,25 @@ jobs:
       - name: Install system packages
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential git meson ninja-build pkg-config libssl-dev libx11-dev libxext-dev libxpresent-dev libxss-dev libvulkan-dev nasm
+          sudo apt-get install -y \
+            build-essential \
+            git \
+            meson \
+            ninja-build \
+            pkg-config \
+            libssl-dev \
+            libx11-dev \
+            libxext-dev \
+            libxpresent-dev \
+            libxss-dev \
+            libvulkan-dev \
+            nasm \
+            libfreetype6-dev \
+            libfontconfig1-dev \
+            libxkbcommon-dev \
+            libxrandr-dev \
+            libxinerama-dev \
+            libgl1-mesa-dev
 
       # Set up environment variables
       - name: Set environment variables
@@ -125,6 +143,10 @@ jobs:
           cp "${{ env.PORTABLE_DIR }}/usr/bin/mpv" "${{ env.PORTABLE_DIR }}/bin/"
           # Copy shared libraries from build_libs to portable lib directory
           find "${{ env.BUILD_LIBS_DIR }}/lib" "${{ env.BUILD_LIBS_DIR }}/lib/x86_64-linux-gnu" -name "*.so*" -exec cp {} "${{ env.PORTABLE_DIR }}/lib/" \;
+          # Copy system libraries for runtime dependencies
+          for lib in libfreetype.so libfontconfig.so libxkbcommon.so libxrandr.so libxinerama.so libgl.so; do
+            find /usr/lib /usr/lib/x86_64-linux-gnu -name "$lib*" -exec cp {} "${{ env.PORTABLE_DIR }}/lib/" \;
+          done
           # Verify dynamic linking
           ldd "${{ env.PORTABLE_DIR }}/bin/mpv"
 
