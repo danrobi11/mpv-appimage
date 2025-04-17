@@ -1,4 +1,4 @@
-name: Build MPV AppImage
+name: Build MPV Dynamic Portable Binary
 
 on:
   push:
@@ -27,16 +27,14 @@ jobs:
       - name: Set environment variables
         run: |
           echo "BASE_DIR=$GITHUB_WORKSPACE" >> $GITHUB_ENV
-          echo "APPDIR=$GITHUB_WORKSPACE/AppDir" >> $GITHUB_ENV
+          echo "PORTABLE_DIR=$GITHUB_WORKSPACE/mpv-portable" >> $GITHUB_ENV
           echo "BUILD_LIBS_DIR=$GITHUB_WORKSPACE/build_libs" >> $GITHUB_ENV
-          echo "OUTPUT_APPIMAGE=$GITHUB_WORKSPACE/mpv-x86_64.AppImage" >> $GITHUB_ENV
-          echo "LINUXDEPLOY_URL=https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage" >> $GITHUB_ENV
           echo "PKG_CONFIG_PATH=$GITHUB_WORKSPACE/build_libs/lib/pkgconfig:$GITHUB_WORKSPACE/build_libs/lib/x86_64-linux-gnu/pkgconfig:$PKG_CONFIG_PATH" >> $GITHUB_ENV
 
       # Create directories
       - name: Create directories
         run: |
-          mkdir -p "${{ env.BUILD_LIBS_DIR }}" "${{ env.APPDIR }}"
+          mkdir -p "${{ env.BUILD_LIBS_DIR }}" "${{ env.PORTABLE_DIR }}/bin" "${{ env.PORTABLE_DIR }}/lib"
 
       # Clone repositories
       - name: Clone libass
@@ -50,7 +48,7 @@ jobs:
       - name: Clone FFmpeg
         run: |
           if [ -d "ffmpeg/.git" ]; then
-            cd ffmpeg && git reset --hard && git pull && cd .. 
+            cd ffmpeg && git reset --hard && git pull && cd ..
           else
             git clone https://github.com/FFmpeg/FFmpeg.git ffmpeg
           fi
@@ -117,41 +115,37 @@ jobs:
             -Dc_link_args="-L${{ env.BUILD_LIBS_DIR }}/lib -L${{ env.BUILD_LIBS_DIR }}/lib/x86_64-linux-gnu" \
             -Dc_args="-I${{ env.BUILD_LIBS_DIR }}/include"
           meson compile -C build
-          meson install -C build --destdir "${{ env.APPDIR }}"
+          meson install -C build --destdir "${{ env.PORTABLE_DIR }}"
           cd ..
 
-      # Create .desktop file
-      - name: Create MPV desktop file
+      # Collect shared libraries
+      - name: Collect shared libraries
         run: |
-          mkdir -p "${{ env.APPDIR }}/usr/share/applications"
-          cat > "${{ env.APPDIR }}/usr/share/applications/mpv.desktop" <<EOF
-          [Desktop Entry]
-          Name=mpv Media Player
-          Exec=mpv %U
-          Icon=mpv
-          Type=Application
-          Categories=AudioVideo;Player;Video;
+          # Copy MPV binary to portable bin directory
+          cp "${{ env.PORTABLE_DIR }}/usr/bin/mpv" "${{ env.PORTABLE_DIR }}/bin/"
+          # Copy shared libraries from build_libs to portable lib directory
+          find "${{ env.BUILD_LIBS_DIR }}/lib" "${{ env.BUILD_LIBS_DIR }}/lib/x86_64-linux-gnu" -name "*.so*" -exec cp {} "${{ env.PORTABLE_DIR }}/lib/" \;
+          # Verify dynamic linking
+          ldd "${{ env.PORTABLE_DIR }}/bin/mpv"
+
+      # Create a wrapper script to set LD_LIBRARY_PATH
+      - name: Create wrapper script
+        run: |
+          cat > "${{ env.PORTABLE_DIR }}/bin/mpv-wrapper.sh" <<EOF
+          #!/bin/bash
+          SCRIPT_DIR=\$(dirname "\$(readlink -f "\$0")")
+          LD_LIBRARY_PATH="\$SCRIPT_DIR/../lib:\$LD_LIBRARY_PATH" "\$SCRIPT_DIR/mpv" "\$@"
           EOF
+          chmod +x "${{ env.PORTABLE_DIR }}/bin/mpv-wrapper.sh"
 
-      # Download linuxdeploy
-      - name: Download linuxdeploy
+      # Package the portable binary
+      - name: Package portable binary
         run: |
-          wget -q "${{ env.LINUXDEPLOY_URL }}" -O linuxdeploy-x86_64.AppImage
-          chmod +x linuxdeploy-x86_64.AppImage
+          tar -czf mpv-portable.tar.gz -C "${{ env.PORTABLE_DIR }}" .
 
-      # Create AppImage
-      - name: Create AppImage
-        run: |
-          LD_LIBRARY_PATH="${{ env.BUILD_LIBS_DIR }}/lib:${{ env.BUILD_LIBS_DIR }}/lib/x86_64-linux-gnu" \
-          ./linuxdeploy-x86_64.AppImage \
-            --appdir "${{ env.APPDIR }}" \
-            --output appimage \
-            --desktop-file "${{ env.APPDIR }}/usr/share/applications/mpv.desktop"
-          mv mpv*.AppImage "${{ env.OUTPUT_APPIMAGE }}"
-
-      # Upload AppImage artifact
-      - name: Upload AppImage
+      # Upload portable binary artifact
+      - name: Upload portable binary
         uses: actions/upload-artifact@v4
         with:
-          name: mpv-appimage
-          path: ${{ env.OUTPUT_APPIMAGE }}
+          name: mpv-portable
+          path: mpv-portable.tar.gz
