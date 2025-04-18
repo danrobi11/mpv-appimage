@@ -140,6 +140,18 @@ jobs:
           meson install -C build
           cd ..
 
+      # Clone and build xorgproto
+      - name: Clone and build xorgproto
+        run: |
+          git clone https://gitlab.freedesktop.org/xorg/proto/xorgproto.git
+          cd xorgproto
+          ./autogen.sh
+          ./configure --prefix="${{ env.BUILD_LIBS_DIR }}"
+          make -j$(nproc)
+          make install
+          ls -l "${{ env.BUILD_LIBS_DIR }}/lib/pkgconfig" "${{ env.BUILD_LIBS_DIR }}/share/pkgconfig"  # Verify xproto.pc installation
+          cd ..
+
       # Clone and build xcb-proto
       - name: Clone and build xcb-proto
         run: |
