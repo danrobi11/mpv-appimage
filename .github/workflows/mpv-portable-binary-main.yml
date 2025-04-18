@@ -36,7 +36,8 @@ jobs:
             gperf \
             gettext \
             autopoint
-          pip3 install mako meson
+          pip3 install --upgrade mako meson
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       # Set up environment variables
       - name: Set environment variables
