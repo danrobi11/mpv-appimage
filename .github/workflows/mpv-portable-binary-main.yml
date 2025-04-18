@@ -152,6 +152,18 @@ jobs:
           ls -l "${{ env.BUILD_LIBS_DIR }}/lib/pkgconfig" "${{ env.BUILD_LIBS_DIR }}/share/pkgconfig"  # Verify xcb-proto.pc installation
           cd ..
 
+      # Clone and build libXau
+      - name: Clone and build libXau
+        run: |
+          git clone https://gitlab.freedesktop.org/xorg/lib/libxau.git
+          cd libxau
+          ./autogen.sh
+          ./configure --prefix="${{ env.BUILD_LIBS_DIR }}"
+          make -j$(nproc)
+          make install
+          ls -l "${{ env.BUILD_LIBS_DIR }}/lib/pkgconfig" "${{ env.BUILD_LIBS_DIR }}/share/pkgconfig"  # Verify xau.pc installation
+          cd ..
+
       # Clone and build libxcb
       - name: Clone and build libxcb
         run: |
