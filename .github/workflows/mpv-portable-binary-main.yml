@@ -32,7 +32,9 @@ jobs:
             automake \
             libtool \
             python3 \
-            python3-pip
+            python3-pip \
+            gperf \
+            gettext
           pip3 install mako
 
       # Set up environment variables
@@ -250,7 +252,7 @@ jobs:
           cd libplacebo
           git submodule update --init
           rm -rf build
-          meson setup build -Dprefix="${{ env.BULD_LIBS_DIR }}" -Dbuildtype=release
+          meson setup build -Dprefix="${{ env.BUILD_LIBS_DIR }}" -Dbuildtype=release
           meson compile -C build
           meson install -C build
           cd ..
@@ -349,7 +351,7 @@ jobs:
         run: |
           tar -czf mpv-portable.tar.gz -C "${{ env.PORTABLE_DIR }}" .
 
-      # Upload portable binary artifact
+      # Upload MORtable binary artifact
       - name: Upload portable binary
         uses: actions/upload-artifact@v4
         with:
