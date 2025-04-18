@@ -149,7 +149,7 @@ jobs:
           ./configure --prefix="${{ env.BUILD_LIBS_DIR }}"
           make -j$(nproc)
           make install
-          ls -l "${{ env.BUILD_LIBS_DIR }}/lib/pkgconfig" "${{ env.BUILD_LIBS_DIR }}/share/pkgconfig"  # Verify xproto.pc installation
+          ls -l "${{ env.BUILD_LIBS_DIR }}/lib/pkgconfig" "${{ env.BUILD_LIBS_DIR }}/share/pkgconfig"  # Verify xproto.pc, randrproto.pc, etc.
           cd ..
 
       # Clone and build xcb-proto
@@ -161,7 +161,7 @@ jobs:
           ./configure --prefix="${{ env.BUILD_LIBS_DIR }}"
           make -j$(nproc)
           make install
-          ls -l "${{ env.BUILD_LIBS_DIR }}/lib/pkgconfig" "${{ env.BUILD_LIBS_DIR }}/share/pkgconfig"  # Verify xcb-proto.pc installation
+          ls -l "${{ env.BUILD_LIBS_DIR }}/lib/pkgconfig" "${{ env.BUILD_LIBS_DIR }}/share/pkgconfig"  # Verify xcb-proto.pc
           cd ..
 
       # Clone and build libXau
@@ -173,7 +173,7 @@ jobs:
           ./configure --prefix="${{ env.BUILD_LIBS_DIR }}"
           make -j$(nproc)
           make install
-          ls -l "${{ env.BUILD_LIBS_DIR }}/lib/pkgconfig" "${{ env.BUILD_LIBS_DIR }}/share/pkgconfig"  # Verify xau.pc installation
+          ls -l "${{ env.BUILD_LIBS_DIR }}/lib/pkgconfig" "${{ env.BUILD_LIBS_DIR }}/share/pkgconfig"  # Verify xau.pc
           cd ..
 
       # Clone and build libxcb
@@ -186,6 +186,42 @@ jobs:
           ./configure --prefix="${{ env.BUILD_LIBS_DIR }}"
           make -j$(nproc)
           make install
+          cd ..
+
+      # Clone and build libX11
+      - name: Clone and build libX11
+        run: |
+          git clone https://gitlab.freedesktop.org/xorg/lib/libx11.git
+          cd libx11
+          ./autogen.sh
+          ./configure --prefix="${{ env.BUILD_LIBS_DIR }}"
+          make -j$(nproc)
+          make install
+          ls -l "${{ env.BUILD_LIBS_DIR }}/lib/pkgconfig" "${{ env.BUILD_LIBS_DIR }}/share/pkgconfig"  # Verify x11.pc
+          cd ..
+
+      # Clone and build libXext
+      - name: Clone and build libXext
+        run: |
+          git clone https://gitlab.freedesktop.org/xorg/lib/libxext.git
+          cd libxext
+          ./autogen.sh
+          ./configure --prefix="${{ env.BUILD_LIBS_DIR }}"
+          make -j$(nproc)
+          make install
+          ls -l "${{ env.BUILD_LIBS_DIR }}/lib/pkgconfig" "${{ env.BUILD_LIBS_DIR }}/share/pkgconfig"  # Verify xext.pc
+          cd ..
+
+      # Clone and build libXrender
+      - name: Clone and build libXrender
+        run: |
+          git clone https://gitlab.freedesktop.org/xorg/lib/libxrender.git
+          cd libxrender
+          ./autogen.sh
+          ./configure --prefix="${{ env.BUILD_LIBS_DIR }}"
+          make -j$(nproc)
+          make install
+          ls -l "${{ env.BUILD_LIBS_DIR }}/lib/pkgconfig" "${{ env.BUILD_LIBS_DIR }}/share/pkgconfig"  # Verify xrender.pc
           cd ..
 
       # Clone and build libxkbcommon
