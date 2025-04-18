@@ -193,7 +193,7 @@ jobs:
         run: |
           git clone https://github.com/xkbcommon/libxkbcommon.git
           cd libxkbcommon
-          meson setup build -Dprefix="${{ env.BUILD_LIBS_DIR }}" -Dbuildtype=release
+          meson setup build -Dprefix="${{ env.BUILD_LIBS_DIR }}" -Dbuildtype=release -Denable-wayland=false
           meson compile -C build
           meson install -C build
           cd ..
