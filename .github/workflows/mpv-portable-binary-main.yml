@@ -99,7 +99,7 @@ jobs:
           git clone https://github.com/fribidi/fribidi.git
           cd fribidi
           ./autogen.sh
-          ./configure --prefix="${{ env.BUILD_LIBS_DIR }}"
+          ./configure --prefix="${{ env.BUILD_LIBS_DIR }}" --disable-docs
           make -j$(nproc)
           make install
           cd ..
