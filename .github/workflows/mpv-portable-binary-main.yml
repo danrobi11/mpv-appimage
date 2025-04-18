@@ -149,6 +149,7 @@ jobs:
           ./configure --prefix="${{ env.BUILD_LIBS_DIR }}"
           make -j$(nproc)
           make install
+          ls -l "${{ env.BUILD_LIBS_DIR }}/lib/pkgconfig"  # Verify xcb-proto.pc installation
           cd ..
 
       # Clone and build libxcb
@@ -156,6 +157,7 @@ jobs:
         run: |
           git clone https://gitlab.freedesktop.org/xorg/lib/libxcb.git
           cd libxcb
+          export PKG_CONFIG_PATH="${{ env.PKG_CONFIG_PATH }}"
           ./autogen.sh
           ./configure --prefix="${{ env.BUILD_LIBS_DIR }}"
           make -j$(nproc)
