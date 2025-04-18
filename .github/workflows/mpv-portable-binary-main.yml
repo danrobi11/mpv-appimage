@@ -188,6 +188,18 @@ jobs:
           make install
           cd ..
 
+      # Clone and build xtrans
+      - name: Clone and build xtrans
+        run: |
+          git clone https://gitlab.freedesktop.org/xorg/lib/xtrans.git
+          cd xtrans
+          ./autogen.sh
+          ./configure --prefix="${{ env.BUILD_LIBS_DIR }}"
+          make -j$(nproc)
+          make install
+          ls -l "${{ env.BUILD_LIBS_DIR }}/lib/pkgconfig" "${{ env.BUILD_LIBS_DIR }}/share/pkgconfig"  # Verify xtrans.pc
+          cd ..
+
       # Clone and build libX11
       - name: Clone and build libX11
         run: |
