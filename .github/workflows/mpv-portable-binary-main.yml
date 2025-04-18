@@ -100,7 +100,7 @@ jobs:
           cd fribidi
           ./autogen.sh
           ./configure --prefix="${{ env.BUILD_LIBS_DIR }}" --disable-docs
-          make -j$(nproc)
+          make -C lib -j$(nproc) && make -C bin -j$(nproc)
           make install
           cd ..
 
