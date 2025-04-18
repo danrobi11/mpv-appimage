@@ -34,7 +34,8 @@ jobs:
             python3 \
             python3-pip \
             gperf \
-            gettext
+            gettext \
+            autopoint
           pip3 install mako
 
       # Set up environment variables
@@ -351,7 +352,7 @@ jobs:
         run: |
           tar -czf mpv-portable.tar.gz -C "${{ env.PORTABLE_DIR }}" .
 
-      # Upload MORtable binary artifact
+      # Upload portable binary artifact
       - name: Upload portable binary
         uses: actions/upload-artifact@v4
         with:
