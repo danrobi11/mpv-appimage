@@ -46,7 +46,7 @@ jobs:
           echo "BASE_DIR=$GITHUB_WORKSPACE" >> $GITHUB_ENV
           echo "PORTABLE_DIR=$GITHUB_WORKSPACE/mpv-portable" >> $GITHUB_ENV
           echo "BUILD_LIBS_DIR=$GITHUB_WORKSPACE/build_libs" >> $GITHUB_ENV
-          echo "PKG_CONFIG_PATH=$GITHUB_WORKSPACE/build_libs/lib/pkgconfig:$GITHUB_WORKSPACE/build_libs/lib64/pkgconfig:$PKG_CONFIG_PATH" >> $GITHUB_ENV
+          echo "PKG_CONFIG_PATH=$GITHUB_WORKSPACE/build_libs/lib/pkgconfig:$GITHUB_WORKSPACE/build_libs/lib64/pkgconfig:$GITHUB_WORKSPACE/build_libs/share/pkgconfig:$PKG_CONFIG_PATH" >> $GITHUB_ENV
           echo "LD_LIBRARY_PATH=$GITHUB_WORKSPACE/build_libs/lib:$GITHUB_WORKSPACE/build_libs/lib64:$LD_LIBRARY_PATH" >> $GITHUB_ENV
           echo "PATH=$GITHUB_WORKSPACE/build_libs/bin:$PATH" >> $GITHUB_ENV
 
@@ -149,7 +149,7 @@ jobs:
           ./configure --prefix="${{ env.BUILD_LIBS_DIR }}"
           make -j$(nproc)
           make install
-          ls -l "${{ env.BUILD_LIBS_DIR }}/lib/pkgconfig"  # Verify xcb-proto.pc installation
+          ls -l "${{ env.BUILD_LIBS_DIR }}/lib/pkgconfig" "${{ env.BUILD_LIBS_DIR }}/share/pkgconfig"  # Verify xcb-proto.pc installation
           cd ..
 
       # Clone and build libxcb
