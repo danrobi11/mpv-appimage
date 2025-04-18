@@ -139,6 +139,28 @@ jobs:
           meson install -C build
           cd ..
 
+      # Clone and build xcb-proto
+      - name: Clone and build xcb-proto
+        run: |
+          git clone https://gitlab.freedesktop.org/xorg/proto/xcbproto.git
+          cd xcbproto
+          ./autogen.sh
+          ./configure --prefix="${{ env.BUILD_LIBS_DIR }}"
+          make -j$(nproc)
+          make install
+          cd ..
+
+      # Clone and build libxcb
+      - name: Clone and build libxcb
+        run: |
+          git clone https://gitlab.freedesktop.org/xorg/lib/libxcb.git
+          cd libxcb
+          ./autogen.sh
+          ./configure --prefix="${{ env.BUILD_LIBS_DIR }}"
+          make -j$(nproc)
+          make install
+          cd ..
+
       # Clone and build libxkbcommon
       - name: Clone and build libxkbcommon
         run: |
