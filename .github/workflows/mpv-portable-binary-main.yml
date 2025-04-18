@@ -65,7 +65,7 @@ jobs:
         run: |
           git clone https://github.com/glennrp/libpng.git
           cd libpng
-          ./autogen.sh
+          autoreconf -f -i
           ./configure --prefix="${{ env.BUILD_LIBS_DIR }}"
           make -j$(nproc)
           make install
