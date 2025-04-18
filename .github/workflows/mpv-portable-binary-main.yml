@@ -35,7 +35,8 @@ jobs:
             python3-pip \
             gperf \
             gettext \
-            autopoint
+            autopoint \
+            xorg-macros
           pip3 install --upgrade mako meson
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
