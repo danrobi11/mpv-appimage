@@ -17,7 +17,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Install system dependencies
+      # Install minimal system dependencies for building
       - name: Install system packages
         run: |
           sudo apt-get update
@@ -27,26 +27,13 @@ jobs:
             meson \
             ninja-build \
             pkg-config \
-            libssl-dev \
-            libx11-dev \
-            libxext-dev \
-            libxpresent-dev \
-            libxss-dev \
-            libvulkan-dev \
             nasm \
-            libfreetype6-dev \
-            libfontconfig1-dev \
-            libfribidi-dev \
-            libharfbuzz-dev \
-            libxkbcommon-dev \
-            libxrandr-dev \
-            libxinerama-dev \
-            libgl1-mesa-dev \
-            libasound2-dev \
-            zlib1g-dev \
-            libpng-dev \
-            libbrotli-dev \
-            libglib2.0-dev
+            autoconf \
+            automake \
+            libtool \
+            python3 \
+            python3-pip
+          pip3 install mako
 
       # Set up environment variables
       - name: Set environment variables
@@ -54,44 +41,171 @@ jobs:
           echo "BASE_DIR=$GITHUB_WORKSPACE" >> $GITHUB_ENV
           echo "PORTABLE_DIR=$GITHUB_WORKSPACE/mpv-portable" >> $GITHUB_ENV
           echo "BUILD_LIBS_DIR=$GITHUB_WORKSPACE/build_libs" >> $GITHUB_ENV
-          echo "PKG_CONFIG_PATH=$GITHUB_WORKSPACE/build_libs/lib/pkgconfig:$GITHUB_WORKSPACE/build_libs/lib/x86_64-linux-gnu/pkgconfig:$PKG_CONFIG_PATH" >> $GITHUB_ENV
+          echo "PKG_CONFIG_PATH=$GITHUB_WORKSPACE/build_libs/lib/pkgconfig:$GITHUB_WORKSPACE/build_libs/lib64/pkgconfig:$PKG_CONFIG_PATH" >> $GITHUB_ENV
+          echo "LD_LIBRARY_PATH=$GITHUB_WORKSPACE/build_libs/lib:$GITHUB_WORKSPACE/build_libs/lib64:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+          echo "PATH=$GITHUB_WORKSPACE/build_libs/bin:$PATH" >> $GITHUB_ENV
 
       # Create directories
       - name: Create directories
         run: |
           mkdir -p "${{ env.BUILD_LIBS_DIR }}" "${{ env.PORTABLE_DIR }}/bin" "${{ env.PORTABLE_DIR }}/lib"
 
-      # Clone repositories
+      # Clone and build zlib
+      - name: Clone and build zlib
+        run: |
+          git clone https://github.com/madler/zlib.git
+          cd zlib
+          ./configure --prefix="${{ env.BUILD_LIBS_DIR }}"
+          make -j$(nproc)
+          make install
+          cd ..
+
+      # Clone and build libpng
+      - name: Clone and build libpng
+        run: |
+          git clone https://github.com/glennrp/libpng.git
+          cd libpng
+          ./autogen.sh
+          ./configure --prefix="${{ env.BUILD_LIBS_DIR }}"
+          make -j$(nproc)
+          make install
+          cd ..
+
+      # Clone and build brotli
+      - name: Clone and build brotli
+        run: |
+          git clone https://github.com/google/brotli.git
+          cd brotli
+          mkdir build && cd build
+          cmake .. -DCMAKE_INSTALL_PREFIX="${{ env.BUILD_LIBS_DIR }}"
+          make -j$(nproc)
+          make install
+          cd ../..
+
+      # Clone and build freetype
+      - name: Clone and build freetype
+        run: |
+          git clone https://gitlab.freedesktop.org/freetype/freetype.git
+          cd freetype
+          ./autogen.sh
+          ./configure --prefix="${{ env.BUILD_LIBS_DIR }}" --with-harfbuzz=no
+          make -j$(nproc)
+          make install
+          cd ..
+
+      # Clone and build fribidi
+      - name: Clone and build fribidi
+        run: |
+          git clone https://github.com/fribidi/fribidi.git
+          cd fribidi
+          ./autogen.sh
+          ./configure --prefix="${{ env.BUILD_LIBS_DIR }}"
+          make -j$(nproc)
+          make install
+          cd ..
+
+      # Clone and build harfbuzz
+      - name: Clone and build harfbuzz
+        run: |
+          git clone https://github.com/harfbuzz/harfbuzz.git
+          cd harfbuzz
+          ./autogen.sh
+          ./configure --prefix="${{ env.BUILD_LIBS_DIR }}"
+          make -j$(nproc)
+          make install
+          cd ..
+
+      # Clone and build fontconfig
+      - name: Clone and build fontconfig
+        run: |
+          git clone https://gitlab.freedesktop.org/fontconfig/fontconfig.git
+          cd fontconfig
+          ./autogen.sh
+          ./configure --prefix="${{ env.BUILD_LIBS_DIR }}" --disable-docs
+          make -j$(nproc)
+          make install
+          cd ..
+
+      # Clone and build glib
+      - name: Clone and build glib
+        run: |
+          git clone https://gitlab.gnome.org/GNOME/glib.git
+          cd glib
+          meson setup build -Dprefix="${{ env.BUILD_LIBS_DIR }}" -Dbuildtype=release
+          meson compile -C build
+          meson install -C build
+          cd ..
+
+      # Clone and build libxkbcommon
+      - name: Clone and build libxkbcommon
+        run: |
+          git clone https://github.com/xkbcommon/libxkbcommon.git
+          cd libxkbcommon
+          meson setup build -Dprefix="${{ env.BUILD_LIBS_DIR }}" -Dbuildtype=release
+          meson compile -C build
+          meson install -C build
+          cd ..
+
+      # Clone and build libxrandr
+      - name: Clone and build libxrandr
+        run: |
+          git clone https://gitlab.freedesktop.org/xorg/lib/libxrandr.git
+          cd libxrandr
+          ./autogen.sh
+          ./configure --prefix="${{ env.BUILD_LIBS_DIR }}"
+          make -j$(nproc)
+          make install
+          cd ..
+
+      # Clone and build libxinerama
+      - name: Clone and build libxinerama
+        run: |
+          git clone https://gitlab.freedesktop.org/xorg/lib/libxinerama.git
+          cd libxinerama
+          ./autogen.sh
+          ./configure --prefix="${{ env.BUILD_LIBS_DIR }}"
+          make -j$(nproc)
+          make install
+          cd ..
+
+      # Clone and build mesa
+      - name: Clone and build mesa
+        run: |
+          git clone https://gitlab.freedesktop.org/mesa/mesa.git
+          cd mesa
+          meson setup build -Dprefix="${{ env.BUILD_LIBS_DIR }}" -Dbuildtype=release -Dglx=disabled -Dgles1=disabled -Dgles2=disabled -Dgbm=disabled
+          meson compile -C build
+          meson install -C build
+          cd ..
+
+      # Clone and build alsa-lib
+      - name: Clone and build alsa-lib
+        run: |
+          git clone https://github.com/alsa-project/alsa-lib.git
+          cd alsa-lib
+          ./autogen.sh
+          ./configure --prefix="${{ env.BUILD_LIBS_DIR }}"
+          make -j$(nproc)
+          make install
+          cd ..
+
+      # Clone and build openssl
+      - name: Clone and build openssl
+        run: |
+          git clone https://github.com/openssl/openssl.git
+          cd openssl
+          ./config --prefix="${{ env.BUILD_LIBS_DIR }}" --openssldir="${{ env.BUILD_LIBS_DIR }}/ssl"
+          make -j$(nproc)
+          make install
+          cd ..
+
+      # Clone libass
       - name: Clone libass
         run: |
           if [ -d "libass/.git" ]; then
             cd libass && git reset --hard && git pull && cd ..
           else
             git clone https://github.com/libass/libass.git
-          fi
-
-      - name: Clone FFmpeg
-        run: |
-          if [ -d "ffmpeg/.git" ]; then
-            cd ffmpeg && git reset --hard && git pull && cd ..
-          else
-            git clone https://github.com/FFmpeg/FFmpeg.git ffmpeg
-          fi
-
-      - name: Clone libplacebo
-        run: |
-          if [ -d "libplacebo/.git" ]; then
-            cd libplacebo && git reset --hard && git pull && cd ..
-          else
-            git clone https://github.com/haasn/libplacebo.git
-          fi
-
-      - name: Clone MPV
-        run: |
-          if [ -d "mpv/.git" ]; then
-            cd mpv && git reset --hard && git pull && cd ..
-          else
-            git clone https://github.com/mpv-player/mpv.git
           fi
 
       # Build libass
@@ -104,6 +218,15 @@ jobs:
           make install
           cd ..
 
+      # Clone FFmpeg
+      - name: Clone FFmpeg
+        run: |
+          if [ -d "ffmpeg/.git" ]; then
+            cd ffmpeg && git reset --hard && git pull && cd ..
+          else
+            git clone https://github.com/FFmpeg/FFmpeg.git ffmpeg
+          fi
+
       # Build FFmpeg
       - name: Build FFmpeg
         run: |
@@ -112,6 +235,15 @@ jobs:
           make -j$(nproc)
           make install
           cd ..
+
+      # Clone libplacebo
+      - name: Clone libplacebo
+        run: |
+          if [ -d "libplacebo/.git" ]; then
+            cd libplacebo && git reset --hard && git pull && cd ..
+          else
+            git clone https://github.com/haasn/libplacebo.git
+          fi
 
       # Build libplacebo
       - name: Build libplacebo
@@ -123,6 +255,15 @@ jobs:
           meson compile -C build
           meson install -C build
           cd ..
+
+      # Clone MPV
+      - name: Clone MPV
+        run: |
+          if [ -d "mpv/.git" ]; then
+            cd mpv && git reset --hard && git pull && cd ..
+          else
+            git clone https://github.com/mpv-player/mpv.git
+          fi
 
       # Build MPV
       - name: Build MPV
@@ -137,7 +278,7 @@ jobs:
             -Dalsa=enabled \
             -Dbuildtype=release \
             -Dprefix=/usr \
-            -Dc_link_args="-L${{ env.BUILD_LIBS_DIR }}/lib -L${{ env.BUILD_LIBS_DIR }}/lib/x86_64-linux-gnu" \
+            -Dc_link_args="-L${{ env.BUILD_LIBS_DIR }}/lib -L${{ env.BUILD_LIBS_DIR }}/lib64" \
             -Dc_args="-I${{ env.BUILD_LIBS_DIR }}/include"
           meson compile -C build
           meson install -C build --destdir "${{ env.PORTABLE_DIR }}"
@@ -159,18 +300,14 @@ jobs:
           # Copy MPV binary to portable bin directory
           cp "${{ env.PORTABLE_DIR }}/usr/bin/mpv" "${{ env.PORTABLE_DIR }}/bin/"
           # Copy all shared libraries from build_libs to portable lib directory
-          find "${{ env.BUILD_LIBS_DIR }}/lib" "${{ env.BUILD_LIBS_DIR }}/lib/x86_64-linux-gnu" -name "*.so*" -exec cp {} "${{ env.PORTABLE_DIR }}/lib/" \;
+          find "${{ env.BUILD_LIBS_DIR }}/lib" "${{ env.BUILD_LIBS_DIR }}/lib64" -name "*.so*" -exec cp {} "${{ env.PORTABLE_DIR }}/lib/" \;
           # Copy specific shared libraries from build_libs explicitly
           for lib in libass.so libplacebo.so; do
-            find "${{ env.BUILD_LIBS_DIR }}/lib" "${{ env.BUILD_LIBS_DIR }}/lib/x86_64-linux-gnu" -name "$lib*" -exec cp {} "${{ env.PORTABLE_DIR }}/lib/" \;
+            find "${{ env.BUILD_LIBS_DIR }}/lib" "${{ env.BUILD_LIBS_DIR }}/lib64" -name "$lib*" -exec cp {} "${{ env.PORTABLE_DIR }}/lib/" \;
           done
-          # Copy system libraries for runtime dependencies
-          for lib in libfreetype.so libfontconfig.so libfribidi.so libharfbuzz.so libgraphite2.so libxkbcommon.so libxrandr.so libxinerama.so libgl.so libasound.so libXss.so libXpresent.so libvulkan.so libz.so libpthread.so libc.so libpng.so libbrotli.so libglib-2.0.so libXau.so libXdmcp.so libXrender.so libGLdispatch.so libbsd.so libmd.so; do
-            find /usr/lib /usr/lib/x86_64-linux-gnu -name "$lib*" -exec cp {} "${{ env.PORTABLE_DIR }}/lib/" \;
-          done
-          # Copy all dependencies identified by ldd
+          # Copy dependencies identified by ldd, but only from build_libs
           ldd "${{ env.PORTABLE_DIR }}/bin/mpv" | grep -oP '(?<=> )[^ ]+' | while read -r lib; do
-            if [ -f "$lib" ]; then
+            if [[ "$lib" == "${{ env.BUILD_LIBS_DIR }}"* && -f "$lib" ]]; then
               cp "$lib" "${{ env.PORTABLE_DIR }}/lib/"
             fi
           done
