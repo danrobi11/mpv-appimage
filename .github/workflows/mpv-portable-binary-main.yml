@@ -191,7 +191,9 @@ jobs:
       # Clone and build xtrans
       - name: Clone and build xtrans
         run: |
-          git clone git://gitlab.freedesktop.org/xorg/lib/xtrans.git
+          for i in {1..3}; do
+            git clone https://gitlab.freedesktop.org/xorg/lib/xtrans.git && break || sleep 5
+          done
           cd xtrans
           ./autogen.sh
           ./configure --prefix="${{ env.BUILD_LIBS_DIR }}"
