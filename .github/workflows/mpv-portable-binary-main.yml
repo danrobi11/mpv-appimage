@@ -109,10 +109,9 @@ jobs:
         run: |
           git clone https://github.com/harfbuzz/harfbuzz.git
           cd harfbuzz
-          autoreconf -f -i
-          ./configure --prefix="${{ env.BUILD_LIBS_DIR }}"
-          make -j$(nproc)
-          make install
+          meson setup build -Dprefix="${{ env.BUILD_LIBS_DIR }}" -Dbuildtype=release
+          meson compile -C build
+          meson install -C build
           cd ..
 
       # Clone and build fontconfig
@@ -251,7 +250,7 @@ jobs:
           cd libplacebo
           git submodule update --init
           rm -rf build
-          meson setup build -Dprefix="${{ env.BUILD_LIBS_DIR }}" -Dbuildtype=release
+          meson setup build -Dprefix="${{ env.BULD_LIBS_DIR }}" -Dbuildtype=release
           meson compile -C build
           meson install -C build
           cd ..
