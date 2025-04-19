@@ -30,7 +30,7 @@ jobs:
             libxrandr-dev libxinerama-dev \
             libegl-dev libgl1-mesa-dev libgles2-mesa-dev \
             libwayland-dev libxkbcommon-dev \
-            liblua5.4-dev libmujs-dev libjpeg-dev libpng-dev \
+            liblua5.1-dev libmujs-dev libjpeg-dev libpng-dev \
             libfreetype6-dev libfontconfig-dev \
             liblcms2-dev libuchardet-dev \
             libopenal-dev libsndio-dev \
@@ -105,6 +105,7 @@ jobs:
           cp -v /usr/lib/x86_64-linux-gnu/libasound*.so* usr/lib/ || { echo "Error: Failed to copy ALSA libs"; exit 1; }
           cp -v /usr/lib/x86_64-linux-gnu/libmujs*.so* usr/lib/ || { echo "Error: Failed to copy MuJS libs"; exit 1; }
           cp -v /usr/lib/x86_64-linux-gnu/libarchive*.so* usr/lib/ || { echo "Error: Failed to copy libarchive libs"; exit 1; }
+          cp -v /usr/lib/x86_64-linux-gnu/liblua5.1*.so* usr/lib/ || { echo "Error: Failed to copy Lua libs"; exit 1; }
           cp -v /lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 usr/lib/ || { echo "Error: Failed to copy linker"; exit 1; }
           echo "Final library list in usr/lib:"
           ls -l usr/lib/
