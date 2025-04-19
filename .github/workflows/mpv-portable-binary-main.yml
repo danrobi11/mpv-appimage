@@ -1,181 +1,54 @@
-name: Build mpv Bundled Binary for Void
+name: Release MPV AppImage
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
 
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+  schedule:
+    - cron: "0 12 1/2 * *"
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Install build tools and dependencies
+      - name: Build MPV AppImage
+        if: always()
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            build-essential curl tar pkg-config zip \
-            git wget patchelf meson ninja-build \
-            libavcodec-dev libavformat-dev libavutil-dev \
-            libswscale-dev libswresample-dev \
-            libass-dev libbluray-dev libdvdnav-dev \
-            libdvdread-dev libcdio-paranoia-dev \
-            libpulse-dev libasound2-dev libva-dev libvdpau-dev \
-            libx11-dev libxext-dev libxss-dev \
-            libxrandr-dev libxinerama-dev \
-            libegl-dev libgl1-mesa-dev libgles2-mesa-dev \
-            libwayland-dev libxkbcommon-dev \
-            liblua5.4-dev libjpeg-dev libpng-dev \
-            libfreetype6-dev libfontconfig-dev \
-            liblcms2-dev libuchardet-dev \
-            libopenal-dev libsndio-dev \
-            libpipewire-0.3-dev libplacebo-dev \
-            python3-dev python3-pip
+          sudo apt update
+          sudo apt install -y desktop-file-utils
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_unconfined=0
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          chmod a+x ./mpv-junest.sh
+          ./mpv-junest.sh
+          mkdir -p dist
+          mv *AppImage* dist/
 
-      - name: Download mpv source
-        run: |
-          mkdir -p ~/mpv-build
-          cd ~/mpv-build
-          wget https://github.com/mpv-player/mpv/archive/v0.38.0.tar.gz -O mpv-0.38.0.tar.gz
-          tar -xzf mpv-0.38.0.tar.gz
-
-      - name: Configure mpv with meson
-        run: |
-          cd ~/mpv-build/mpv-0.38.0
-          meson setup build \
-            --prefix=/usr \
-            -Dbuildtype=release \
-            -Dlibmpv=true \
-            -Dlua=enabled \
-            -Djavascript=enabled \
-            -Dlibarchive=enabled \
-            -Dlibbluray=enabled \
-            -Ddvb=enabled \
-            -Ddvdnav=enabled \
-            -Dcdio=enabled \
-            -Duchardet=enabled \
-            -Dlcms2=enabled \
-            -Dpulse=enabled \
-            -Dalsa=enabled \
-            -Dpipewire=enabled \
-            -Dvaapi=enabled \
-            -Dvdpau=enabled \
-            -Dwayland=enabled \
-            -Dx11=enabled \
-            -Dgl=enabled \
-            -Degl=enabled \
-            -Dopenal=enabled \
-            -Dsndio=enabled \
-            -Dvulkan=enabled \
-            -Dplacebo=enabled \
-            || { echo "Meson configuration failed"; exit 1; }
-
-      - name: Build mpv
-        run: |
-          cd ~/mpv-build/mpv-0.38.0
-          ninja -C build || { echo "Build failed"; exit 1; }
-
-      - name: Install mpv to a staging directory
-        run: |
-          cd ~/mpv-build/mpv-0.38.0
-          mkdir -p ~/mpv-install/usr
-          ninja -C build install DESTDIR=~/mpv-install || { echo "Installation failed"; exit 1; }
-
-      - name: Bundle all shared library dependencies
-        run: |
-          cd ~/mpv-install
-          mkdir -p usr/lib
-          cp ~/mpv-build/mpv-0.38.0/build/mpv usr/bin/mpv-bin
-          chmod +w usr/bin/mpv-bin
-          echo "Listing libraries required by mpv:"
-          ldd usr/bin/mpv-bin
-          ldd usr/bin/mpv-bin | grep -o '/[^ ]*\.so[^ ]*' | sort -u | while read lib; do
-            echo "Copying $lib"
-            cp -v "$lib" usr/lib/ || { echo "Error: Failed to copy $lib"; exit 1; }
-          done
-          cp -v /usr/lib/x86_64-linux-gnu/libav*.so* usr/lib/ || { echo "Error: Failed to copy FFmpeg libs"; exit 1; }
-          cp -v /usr/lib/x86_64-linux-gnu/libpulse*.so* usr/lib/ || { echo "Error: Failed to copy PulseAudio libs"; exit 1; }
-          cp -v /usr/lib/x86_64-linux-gnu/libasound*.so* usr/lib/ || { echo "Error: Failed to copy ALSA libs"; exit 1; }
-          cp -v /lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 usr/lib/ || { echo "Error: Failed to copy linker"; exit 1; }
-          echo "Final library list in usr/lib:"
-          ls -l usr/lib/
-
-      - name: Ensure RPATH with patchelf
-        run: |
-          echo "Patchelf version:"
-          patchelf --version
-          echo "Before patchelf:"
-          readelf -d ~/mpv-install/usr/bin/mpv-bin | grep RPATH || echo "No RPATH set initially"
-          ls -l ~/mpv-install/usr/bin/mpv-bin
-          sudo patchelf --force-rpath --set-rpath \$ORIGIN/../lib ~/mpv-install/usr/bin/mpv-bin || { echo "Patchelf failed"; exit 1; }
-          echo "After patchelf:"
-          readelf -d ~/mpv-install/usr/bin/mpv-bin | grep RPATH || { echo "RPATH not set after patchelf"; exit 1; }
-
-      - name: Create config directory
-        run: |
-          cd ~/mpv-install/usr
-          mkdir -p config/mpv
-          cat > config/mpv/mpv.conf << EOF
-          # Sample mpv configuration
-          vo=gpu
-          hwdec=auto
-          profile=high
-          ao=pulse,alsa
-          EOF
-          chmod 700 config/mpv/mpv.conf
-          ls -l config/mpv/
-
-      - name: Create launcher script
-        run: |
-          cd ~/mpv-install/usr/bin
-          cat > mpv << 'EOF'
-          #!/bin/bash
-          DIR="$(dirname "$(realpath "$0")")"
-          # Debug environment
-          echo "Initial XDG_RUNTIME_DIR: ${XDG_RUNTIME_DIR:-unset}"
-          echo "UID: $UID"
-          # Set XDG_RUNTIME_DIR to a custom location if unset or if /run/user/$UID is inaccessible
-          if [ -z "$XDG_RUNTIME_DIR" ] || [ ! -w "$XDG_RUNTIME_DIR" ]; then
-            XDG_RUNTIME_DIR="/tmp/mpv-$UID"
-            mkdir -p "$XDG_RUNTIME_DIR/mpv" || { echo "Failed to create $XDG_RUNTIME_DIR/mpv"; exit 1; }
-            chmod 700 "$XDG_RUNTIME_DIR/mpv"
-            export XDG_RUNTIME_DIR
-            echo "Set XDG_RUNTIME_DIR to $XDG_RUNTIME_DIR"
-          else
-            mkdir -p "$XDG_RUNTIME_DIR/mpv" || { echo "Failed to create $XDG_RUNTIME_DIR/mpv"; exit 1; }
-            chmod 700 "$XDG_RUNTIME_DIR/mpv"
-            echo "Using existing XDG_RUNTIME_DIR: $XDG_RUNTIME_DIR"
-          fi
-          echo "Final XDG_RUNTIME_DIR: $XDG_RUNTIME_DIR"
-          ls -ld "$XDG_RUNTIME_DIR/mpv"
-          # Run mpv with explicit environment
-          env XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" \
-            "$DIR/../lib/ld-linux-x86-64.so.2" --library-path "$DIR/../lib" "$DIR/mpv-bin" \
-            --config-dir="$DIR/../config/mpv" \
-            "$@" || { echo "mpv failed to start"; exit 1; }
-          EOF
-          chmod +x mpv
-          cat mpv
-
-      - name: Create zip file with binary and libraries
-        run: |
-          cd ~/mpv-install
-          zip -r ~/mpv-0.38.0-void-bundled.zip .
-
-      - name: Generate SHA256 checksum
-        run: |
-          sha256sum ~/mpv-0.38.0-void-bundled.zip > ~/mpv-0.38.0-void-bundled.zip.sha256
-          cat ~/mpv-0.38.0-void-bundled.zip.sha256
-
-      - name: Upload binary artifact
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: mpv-void-bundled
-          path: |
-            ~/mpv-0.38.0-void-bundled.zip
-            ~/mpv-0.38.0-void-bundled.zip.sha256
+          name: MPV-Media-Player-x86_64.AppImage
+          path: dist/
+
+  release:
+    needs: [build]
+    permissions: write-all
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: MPV-Media-Player-x86_64.AppImage
+
+      - name: Create release
+        uses: marvinpinto/action-automatic-releases@latest
+        with:
+          title: Continuous build
+          automatic_release_tag: continuous
+          prerelease: false
+          draft: false
+          files: |
+            *.AppImage
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
