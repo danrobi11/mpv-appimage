@@ -105,7 +105,10 @@ jobs:
           cp -v /usr/lib/x86_64-linux-gnu/libav*.so* usr/lib/ || { echo "Error: Failed to copy FFmpeg libs"; exit 1; }
           cp -v /usr/lib/x86_64-linux-gnu/libavfilter*.so* usr/lib/ || { echo "Error: Failed to copy libavfilter libs"; exit 1; }
           cp -v /usr/lib/x86_64-linux-gnu/libpulse*.so* usr/lib/ || { echo "Error: Failed to copy PulseAudio libs"; exit 1; }
-          cp -v /usr/lib/x86_64-linux-gnu/pulseaudio/libpulsecommon*.so* usr/lib/ || { echo "Error: Failed to copy PulseAudio common libs"; exit 1; }
+          cp -v /usr/lib/x86_64-linux-gnu/pulseaudio/libpulsecommon*.so* usr/lib/ 2>/dev/null || \
+          cp -v /usr/lib/pulseaudio/libpulsecommon*.so* usr/lib/ 2>/dev/null || \
+          cp -v /usr/lib/*/pulseaudio/libpulsecommon*.so* usr/lib/ 2>/dev/null || \
+          { echo "Error: Failed to copy libpulsecommon libs"; exit 1; }
           cp -v /usr/lib/x86_64-linux-gnu/libasound*.so* usr/lib/ || { echo "Error: Failed to copy ALSA libs"; exit 1; }
           cp -v /usr/lib/x86_64-linux-gnu/libmujs*.so* usr/lib/ || { echo "Error: Failed to copy MuJS libs"; exit 1; }
           cp -v /usr/lib/x86_64-linux-gnu/libarchive*.so* usr/lib/ || { echo "Error: Failed to copy libarchive libs"; exit 1; }
