@@ -84,8 +84,8 @@ jobs:
       - name: Install mpv to a staging directory
         run: |
           cd ~/mpv-build/mpv
-          mkdir -p ~/mpv-install/usr
-          ninja -C build install DESTDIR=~/mpv-install || { echo "Installation failed"; exit 1; }
+          mkdir -p /home/runner/mpv-install/usr
+          DESTDIR=/home/runner/mpv-install ninja -C build install || { echo "Installation failed"; exit 1; }
 
       - name: Bundle all shared library dependencies
         run: |
