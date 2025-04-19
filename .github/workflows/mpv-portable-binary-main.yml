@@ -22,7 +22,7 @@ jobs:
             build-essential curl tar pkg-config zip \
             git wget patchelf meson ninja-build \
             libavcodec-dev libavformat-dev libavutil-dev \
-            libswscale-dev libswresample-dev \
+            libswscale-dev libswresample-dev libavfilter-dev \
             libass-dev libbluray-dev libdvdnav-dev \
             libdvdread-dev libcdio-paranoia-dev \
             libpulse-dev libasound2-dev libva-dev libvdpau-dev \
@@ -99,6 +99,7 @@ jobs:
             cp -v "$lib" usr/lib/ || { echo "Error: Failed to copy $lib"; exit 1; }
           done
           cp -v /usr/lib/x86_64-linux-gnu/libav*.so* usr/lib/ || { echo "Error: Failed to copy FFmpeg libs"; exit 1; }
+          cp -v /usr/lib/x86_64-linux-gnu/libavfilter*.so* usr/lib/ || { echo "Error: Failed to copy libavfilter libs"; exit 1; }
           cp -v /usr/lib/x86_64-linux-gnu/libpulse*.so* usr/lib/ || { echo "Error: Failed to copy PulseAudio libs"; exit 1; }
           cp -v /usr/lib/x86_64-linux-gnu/libasound*.so* usr/lib/ || { echo "Error: Failed to copy ALSA libs"; exit 1; }
           cp -v /lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 usr/lib/ || { echo "Error: Failed to copy linker"; exit 1; }
