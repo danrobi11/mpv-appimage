@@ -73,7 +73,6 @@ jobs:
             -Dopenal=enabled \
             -Dsndio=enabled \
             -Dvulkan=enabled \
-            -Dlibplacebo=enabled \
             || { echo "Meson configuration failed"; exit 1; }
 
       - name: Build mpv
