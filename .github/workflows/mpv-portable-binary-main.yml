@@ -36,6 +36,7 @@ jobs:
             libopenal-dev libsndio-dev \
             libpipewire-0.3-dev libplacebo-dev \
             libarchive-dev \
+            mesa-opencl-icd mesa-vulkan-drivers vulkan-loader-dev \
             python3-dev python3-pip
 
       - name: Clone mpv source from Git
@@ -95,19 +96,37 @@ jobs:
           chmod +w usr/bin/mpv-bin
           echo "Listing libraries required by mpv:"
           ldd usr/bin/mpv-bin
+          # Copy directly linked libraries
           ldd usr/bin/mpv-bin | grep -o '/[^ ]*\.so[^ ]*' | sort -u | while read lib; do
             echo "Copying $lib"
             cp -v "$lib" usr/lib/ || { echo "Error: Failed to copy $lib"; exit 1; }
           done
+          # Explicitly copy known libraries
           cp -v /usr/lib/x86_64-linux-gnu/libav*.so* usr/lib/ || { echo "Error: Failed to copy FFmpeg libs"; exit 1; }
           cp -v /usr/lib/x86_64-linux-gnu/libavfilter*.so* usr/lib/ || { echo "Error: Failed to copy libavfilter libs"; exit 1; }
           cp -v /usr/lib/x86_64-linux-gnu/libpulse*.so* usr/lib/ || { echo "Error: Failed to copy PulseAudio libs"; exit 1; }
+          cp -v /usr/lib/x86_64-linux-gnu/pulseaudio/libpulsecommon*.so* usr/lib/ || { echo "Error: Failed to copy PulseAudio common libs"; exit 1; }
           cp -v /usr/lib/x86_64-linux-gnu/libasound*.so* usr/lib/ || { echo "Error: Failed to copy ALSA libs"; exit 1; }
           cp -v /usr/lib/x86_64-linux-gnu/libmujs*.so* usr/lib/ || { echo "Error: Failed to copy MuJS libs"; exit 1; }
           cp -v /usr/lib/x86_64-linux-gnu/libarchive*.so* usr/lib/ || { echo "Error: Failed to copy libarchive libs"; exit 1; }
           cp -v /usr/lib/x86_64-linux-gnu/liblua5.1*.so* usr/lib/ || { echo "Error: Failed to copy Lua libs"; exit 1; }
           cp -v /usr/lib/x86_64-linux-gnu/libXpresent*.so* usr/lib/ || { echo "Error: Failed to copy Xpresent libs"; exit 1; }
+          cp -v /usr/lib/x86_64-linux-gnu/libGL*.so* usr/lib/ || { echo "Error: Failed to copy OpenGL libs"; exit 1; }
+          cp -v /usr/lib/x86_64-linux-gnu/libEGL*.so* usr/lib/ || { echo "Error: Failed to copy EGL libs"; exit 1; }
+          cp -v /usr/lib/x86_64-linux-gnu/libvulkan*.so* usr/lib/ || { echo "Error: Failed to copy Vulkan libs"; exit 1; }
           cp -v /lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 usr/lib/ || { echo "Error: Failed to copy linker"; exit 1; }
+          # Copy transitive dependencies of explicitly copied libraries
+          for lib in usr/lib/*.so*; do
+            if [ -f "$lib" ]; then
+              echo "Checking transitive dependencies for $lib"
+              ldd "$lib" | grep -o '/[^ ]*\.so[^ ]*' | sort -u | while read dep; do
+                if [ -f "$dep" ] && [ ! -f "usr/lib/$(basename "$dep")" ]; then
+                  echo "Copying transitive dependency $dep"
+                  cp -v "$dep" usr/lib/ || { echo "Error: Failed to copy $dep"; exit 1; }
+                fi
+              done
+            fi
+          done
           echo "Final library list in usr/lib:"
           ls -l usr/lib/
 
@@ -130,7 +149,6 @@ jobs:
           # Sample mpv configuration
           vo=gpu
           hwdec=auto
-          profile=high
           ao=pulse,alsa
           EOF
           chmod 700 config/mpv/mpv.conf
