@@ -29,7 +29,7 @@ jobs:
             libx11-dev libxext-dev libxss-dev \
             libxrandr-dev libxinerama-dev \
             libegl-dev libgl1-mesa-dev libgles2-mesa-dev \
-            libwayland-dev libxkbcommon-dev \
+            libwayland-dev wayland-protocols libxkbcommon-dev \
             liblua5.1-dev libmujs-dev libjpeg-dev libpng-dev \
             libfreetype6-dev libfontconfig-dev \
             liblcms2-dev libuchardet-dev \
