@@ -1,460 +1,181 @@
-name: Build MPV Dynamic Portable Binary
+name: Build mpv Bundled Binary for Void
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
   pull_request:
-    branches:
-      - main
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout the repository
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Install minimal system dependencies for building
-      - name: Install system packages
+      - name: Install build tools and dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            build-essential \
-            git \
-            meson \
-            ninja-build \
-            pkg-config \
-            nasm \
-            autoconf \
-            automake \
-            libtool \
-            python3 \
-            python3-pip \
-            gperf \
-            gettext \
-            autopoint \
-            xutils-dev
-          pip3 install --upgrade mako meson
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
+            build-essential curl tar pkg-config zip \
+            git wget patchelf meson ninja-build \
+            libavcodec-dev libavformat-dev libavutil-dev \
+            libswscale-dev libswresample-dev \
+            libass-dev libbluray-dev libdvdnav-dev \
+            libdvdread-dev libcdio-paranoia-dev \
+            libpulse-dev libasound2-dev libva-dev libvdpau-dev \
+            libx11-dev libxext-dev libxss-dev \
+            libxrandr-dev libxinerama-dev \
+            libegl-dev libgl1-mesa-dev libgles2-mesa-dev \
+            libwayland-dev libxkbcommon-dev \
+            liblua5.4-dev libjpeg-dev libpng-dev \
+            libfreetype6-dev libfontconfig-dev \
+            liblcms2-dev libuchardet-dev \
+            libopenal-dev libsndio-dev \
+            libpipewire-0.3-dev libplacebo-dev \
+            python3-dev python3-pip
 
-      # Set up environment variables
-      - name: Set environment variables
+      - name: Download mpv source
         run: |
-          echo "BASE_DIR=$GITHUB_WORKSPACE" >> $GITHUB_ENV
-          echo "PORTABLE_DIR=$GITHUB_WORKSPACE/mpv-portable" >> $GITHUB_ENV
-          echo "BUILD_LIBS_DIR=$GITHUB_WORKSPACE/build_libs" >> $GITHUB_ENV
-          echo "PKG_CONFIG_PATH=$GITHUB_WORKSPACE/build_libs/lib/pkgconfig:$GITHUB_WORKSPACE/build_libs/lib64/pkgconfig:$GITHUB_WORKSPACE/build_libs/share/pkgconfig:$PKG_CONFIG_PATH" >> $GITHUB_ENV
-          echo "LD_LIBRARY_PATH=$GITHUB_WORKSPACE/build_libs/lib:$GITHUB_WORKSPACE/build_libs/lib64:$LD_LIBRARY_PATH" >> $GITHUB_ENV
-          echo "PATH=$GITHUB_WORKSPACE/build_libs/bin:$PATH" >> $GITHUB_ENV
+          mkdir -p ~/mpv-build
+          cd ~/mpv-build
+          wget https://github.com/mpv-player/mpv/archive/v0.38.0.tar.gz -O mpv-0.38.0.tar.gz
+          tar -xzf mpv-0.38.0.tar.gz
 
-      # Create directories
-      - name: Create directories
+      - name: Configure mpv with meson
         run: |
-          mkdir -p "${{ env.BUILD_LIBS_DIR }}" "${{ env.PORTABLE_DIR }}/bin" "${{ env.PORTABLE_DIR }}/lib"
-
-      # Clone and build zlib
-      - name: Clone and build zlib
-        run: |
-          git clone https://github.com/madler/zlib.git
-          cd zlib
-          ./configure --prefix="${{ env.BUILD_LIBS_DIR }}"
-          make -j$(nproc)
-          make install
-          cd ..
-
-      # Clone and build libpng
-      - name: Clone and build libpng
-        run: |
-          git clone https://github.com/glennrp/libpng.git
-          cd libpng
-          autoreconf -f -i
-          ./configure --prefix="${{ env.BUILD_LIBS_DIR }}"
-          make -j$(nproc)
-          make install
-          cd ..
-
-      # Clone and build brotli
-      - name: Clone and build brotli
-        run: |
-          git clone https://github.com/google/brotli.git
-          cd brotli
-          mkdir build && cd build
-          cmake .. -DCMAKE_INSTALL_PREFIX="${{ env.BUILD_LIBS_DIR }}"
-          make -j$(nproc)
-          make install
-          cd ../..
-
-      # Clone and build freetype
-      - name: Clone and build freetype
-        run: |
-          git clone https://gitlab.freedesktop.org/freetype/freetype.git
-          cd freetype
-          ./autogen.sh
-          ./configure --prefix="${{ env.BUILD_LIBS_DIR }}" --with-harfbuzz=no
-          make -j$(nproc)
-          make install
-          cd ..
-
-      # Clone and build fribidi
-      - name: Clone and build fribidi
-        run: |
-          git clone https://github.com/fribidi/fribidi.git
-          cd fribidi
-          ./autogen.sh
-          ./configure --prefix="${{ env.BUILD_LIBS_DIR }}" --disable-docs
-          make -C lib -j$(nproc) && make -C bin -j$(nproc)
-          make install
-          cd ..
-
-      # Clone and build harfbuzz
-      - name: Clone and build harfbuzz
-        run: |
-          git clone https://github.com/harfbuzz/harfbuzz.git
-          cd harfbuzz
-          meson setup build -Dprefix="${{ env.BUILD_LIBS_DIR }}" -Dbuildtype=release
-          meson compile -C build
-          meson install -C build
-          cd ..
-
-      # Clone and build fontconfig
-      - name: Clone and build fontconfig
-        run: |
-          git clone https://gitlab.freedesktop.org/fontconfig/fontconfig.git
-          cd fontconfig
-          ./autogen.sh
-          ./configure --prefix="${{ env.BUILD_LIBS_DIR }}" --disable-docs
-          make -j$(nproc)
-          make install
-          cd ..
-
-      # Clone and build glib
-      - name: Clone and build glib
-        run: |
-          git clone https://gitlab.gnome.org/GNOME/glib.git
-          cd glib
-          meson setup build -Dprefix="${{ env.BUILD_LIBS_DIR }}" -Dbuildtype=release
-          meson compile -C build
-          meson install -C build
-          cd ..
-
-      # Clone and build xorgproto
-      - name: Clone and build xorgproto
-        run: |
-          git clone https://gitlab.freedesktop.org/xorg/proto/xorgproto.git
-          cd xorgproto
-          ./autogen.sh
-          ./configure --prefix="${{ env.BUILD_LIBS_DIR }}"
-          make -j$(nproc)
-          make install
-          ls -l "${{ env.BUILD_LIBS_DIR }}/lib/pkgconfig" "${{ env.BUILD_LIBS_DIR }}/share/pkgconfig"  # Verify xproto.pc, randrproto.pc, etc.
-          cd ..
-
-      # Clone and build xcb-proto
-      - name: Clone and build xcb-proto
-        run: |
-          git clone https://gitlab.freedesktop.org/xorg/proto/xcbproto.git
-          cd xcbproto
-          ./autogen.sh
-          ./configure --prefix="${{ env.BUILD_LIBS_DIR }}"
-          make -j$(nproc)
-          make install
-          ls -l "${{ env.BUILD_LIBS_DIR }}/lib/pkgconfig" "${{ env.BUILD_LIBS_DIR }}/share/pkgconfig"  # Verify xcb-proto.pc
-          cd ..
-
-      # Clone and build libXau
-      - name: Clone and build libXau
-        run: |
-          git clone https://gitlab.freedesktop.org/xorg/lib/libxau.git
-          cd libxau
-          ./autogen.sh
-          ./configure --prefix="${{ env.BUILD_LIBS_DIR }}"
-          make -j$(nproc)
-          make install
-          ls -l "${{ env.BUILD_LIBS_DIR }}/lib/pkgconfig" "${{ env.BUILD_LIBS_DIR }}/share/pkgconfig"  # Verify xau.pc
-          cd ..
-
-      # Clone and build libxcb
-      - name: Clone and build libxcb
-        run: |
-          git clone https://gitlab.freedesktop.org/xorg/lib/libxcb.git
-          cd libxcb
-          export PKG_CONFIG_PATH="${{ env.PKG_CONFIG_PATH }}"
-          ./autogen.sh
-          ./configure --prefix="${{ env.BUILD_LIBS_DIR }}"
-          make -j$(nproc)
-          make install
-          cd ..
-
-      # Clone and build xtrans
-      - name: Clone and build xtrans
-        run: |
-          for i in {1..3}; do
-            git clone https://gitlab.freedesktop.org/xorg/lib/xtrans.git && break || sleep 5
-          done
-          cd xtrans
-          ./autogen.sh
-          ./configure --prefix="${{ env.BUILD_LIBS_DIR }}"
-          make -j$(nproc)
-          make install
-          ls -l "${{ env.BUILD_LIBS_DIR }}/lib/pkgconfig" "${{ env.BUILD_LIBS_DIR }}/share/pkgconfig"  # Verify xtrans.pc
-          cd ..
-
-      # Clone and build libX11
-      - name: Clone and build libX11
-        run: |
-          git clone https://gitlab.freedesktop.org/xorg/lib/libx11.git
-          cd libx11
-          ./autogen.sh
-          ./configure --prefix="${{ env.BUILD_LIBS_DIR }}"
-          make -j$(nproc)
-          make install
-          ls -l "${{ env.BUILD_LIBS_DIR }}/lib/pkgconfig" "${{ env.BUILD_LIBS_DIR }}/share/pkgconfig"  # Verify x11.pc
-          cd ..
-
-      # Clone and build libXext
-      - name: Clone and build libXext
-        run: |
-          git clone https://gitlab.freedesktop.org/xorg/lib/libxext.git
-          cd libxext
-          ./autogen.sh
-          ./configure --prefix="${{ env.BUILD_LIBS_DIR }}"
-          make -j$(nproc)
-          make install
-          ls -l "${{ env.BUILD_LIBS_DIR }}/lib/pkgconfig" "${{ env.BUILD_LIBS_DIR }}/share/pkgconfig"  # Verify xext.pc
-          cd ..
-
-      # Clone and build libXrender
-      - name: Clone and build libXrender
-        run: |
-          git clone https://gitlab.freedesktop.org/xorg/lib/libxrender.git
-          cd libxrender
-          ./autogen.sh
-          ./configure --prefix="${{ env.BUILD_LIBS_DIR }}"
-          make -j$(nproc)
-          make install
-          ls -l "${{ env.BUILD_LIBS_DIR }}/lib/pkgconfig" "${{ env.BUILD_LIBS_DIR }}/share/pkgconfig"  # Verify xrender.pc
-          cd ..
-
-      # Clone and build libxkbcommon
-      - name: Clone and build libxkbcommon
-        run: |
-          git clone https://github.com/xkbcommon/libxkbcommon.git
-          cd libxkbcommon
-          meson setup build -Dprefix="${{ env.BUILD_LIBS_DIR }}" -Dbuildtype=release -Denable-wayland=false
-          meson compile -C build
-          meson install -C build
-          cd ..
-
-      # Clone and build libxrandr
-      - name: Clone and build libxrandr
-        run: |
-          git clone https://gitlab.freedesktop.org/xorg/lib/libxrandr.git
-          cd libxrandr
-          ./autogen.sh
-          ./configure --prefix="${{ env.BUILD_LIBS_DIR }}"
-          make -j$(nproc)
-          make install
-          cd ..
-
-      # Clone and build libxinerama
-      - name: Clone and build libxinerama
-        run: |
-          git clone https://gitlab.freedesktop.org/xorg/lib/libxinerama.git
-          cd libxinerama
-          ./autogen.sh
-          ./configure --prefix="${{ env.BUILD_LIBS_DIR }}"
-          make -j$(nproc)
-          make install
-          cd ..
-
-      # Clone and build mesa
-      - name: Clone and build mesa
-        run: |
-          git clone https://gitlab.freedesktop.org/mesa/mesa.git
-          cd mesa
-          meson setup build -Dprefix="${{ env.BUILD_LIBS_DIR }}" -Dbuildtype=release -Dglx=disabled -Dgles1=disabled -Dgles2=disabled -Dgbm=disabled
-          meson compile -C build
-          meson install -C build
-          cd ..
-
-      # Clone and build alsa-lib
-      - name: Clone and build alsa-lib
-        run: |
-          git clone https://github.com/alsa-project/alsa-lib.git
-          cd alsa-lib
-          ./autogen.sh
-          ./configure --prefix="${{ env.BUILD_LIBS_DIR }}"
-          make -j$(nproc)
-          make install
-          cd ..
-
-      # Clone and build openssl
-      - name: Clone and build openssl
-        run: |
-          git clone https://github.com/openssl/openssl.git
-          cd openssl
-          ./config --prefix="${{ env.BUILD_LIBS_DIR }}" --openssldir="${{ env.BUILD_LIBS_DIR }}/ssl"
-          make -j$(nproc)
-          make install
-          cd ..
-
-      # Clone libass
-      - name: Clone libass
-        run: |
-          if [ -d "libass/.git" ]; then
-            cd libass && git reset --hard && git pull && cd ..
-          else
-            git clone https://github.com/libass/libass.git
-          fi
-
-      # Build libass
-      - name: Build libass
-        run: |
-          cd libass
-          ./autogen.sh
-          ./configure --prefix="${{ env.BUILD_LIBS_DIR }}"
-          make -j$(nproc)
-          make install
-          cd ..
-
-      # Clone FFmpeg
-      - name: Clone FFmpeg
-        run: |
-          if [ -d "ffmpeg/.git" ]; then
-            cd ffmpeg && git reset --hard && git pull && cd ..
-          else
-            git clone https://github.com/FFmpeg/FFmpeg.git ffmpeg
-          fi
-
-      # Build FFmpeg
-      - name: Build FFmpeg
-        run: |
-          cd ffmpeg
-          ./configure --prefix="${{ env.BUILD_LIBS_DIR }}" --enable-gpl --enable-libass --enable-openssl --enable-version3
-          make -j$(nproc)
-          make install
-          cd ..
-
-      # Clone libplacebo
-      - name: Clone libplacebo
-        run: |
-          if [ -d "libplacebo/.git" ]; then
-            cd libplacebo && git reset --hard && git pull && cd ..
-          else
-            git clone https://github.com/haasn/libplacebo.git
-          fi
-
-      # Build libplacebo
-      - name: Build libplacebo
-        run: |
-          cd libplacebo
-          git submodule update --init
-          rm -rf build
-          meson setup build -Dprefix="${{ env.BUILD_LIBS_DIR }}" -Dbuildtype=release
-          meson compile -C build
-          meson install -C build
-          cd ..
-
-      # Clone MPV
-      - name: Clone MPV
-        run: |
-          if [ -d "mpv/.git" ]; then
-            cd mpv && git reset --hard && git pull && cd ..
-          else
-            git clone https://github.com/mpv-player/mpv.git
-          fi
-
-      # Build MPV
-      - name: Build MPV
-        run: |
-          cd mpv
+          cd ~/mpv-build/mpv-0.38.0
           meson setup build \
-            -Dx11=enabled \
-            -Dwayland=disabled \
-            -Dlibmpv=false \
-            -Dvapoursynth=disabled \
-            -Dpulse=disabled \
-            -Dalsa=enabled \
+            --prefix=/usr \
             -Dbuildtype=release \
-            -Dprefix=/usr \
-            -Dc_link_args="-L${{ env.BUILD_LIBS_DIR }}/lib -L${{ env.BUILD_LIBS_DIR }}/lib64" \
-            -Dc_args="-I${{ env.BUILD_LIBS_DIR }}/include"
-          meson compile -C build
-          meson install -C build --destdir "${{ env.PORTABLE_DIR }}"
-          cd ..
+            -Dlibmpv=true \
+            -Dlua=enabled \
+            -Djavascript=enabled \
+            -Dlibarchive=enabled \
+            -Dlibbluray=enabled \
+            -Ddvb=enabled \
+            -Ddvdnav=enabled \
+            -Dcdio=enabled \
+            -Duchardet=enabled \
+            -Dlcms2=enabled \
+            -Dpulse=enabled \
+            -Dalsa=enabled \
+            -Dpipewire=enabled \
+            -Dvaapi=enabled \
+            -Dvdpau=enabled \
+            -Dwayland=enabled \
+            -Dx11=enabled \
+            -Dgl=enabled \
+            -Degl=enabled \
+            -Dopenal=enabled \
+            -Dsndio=enabled \
+            -Dvulkan=enabled \
+            -Dplacebo=enabled \
+            || { echo "Meson configuration failed"; exit 1; }
 
-      # Remove unnecessary desktop files and related assets
-      - name: Remove desktop files and assets
+      - name: Build mpv
         run: |
-          rm -rf "${{ env.PORTABLE_DIR }}/usr/share/applications" \
-                 "${{ env.PORTABLE_DIR }}/usr/share/icons" \
-                 "${{ env.PORTABLE_DIR }}/usr/share/metainfo" \
-                 "${{ env.PORTABLE_DIR }}/usr/share/bash-completion" \
-                 "${{ env.PORTABLE_DIR }}/usr/share/zsh" \
-                 "${{ env.PORTABLE_DIR }}/usr/share/fish"
+          cd ~/mpv-build/mpv-0.38.0
+          ninja -C build || { echo "Build failed"; exit 1; }
 
-      # Collect shared libraries
-      - name: Collect shared libraries
+      - name: Install mpv to a staging directory
         run: |
-          # Copy MPV binary to portable bin directory
-          cp "${{ env.PORTABLE_DIR }}/usr/bin/mpv" "${{ env.PORTABLE_DIR }}/bin/"
-          # Copy all shared libraries from build_libs to portable lib directory
-          find "${{ env.BUILD_LIBS_DIR }}/lib" "${{ env.BUILD_LIBS_DIR }}/lib64" -name "*.so*" -exec cp {} "${{ env.PORTABLE_DIR }}/lib/" \;
-          # Copy specific shared libraries from build_libs explicitly
-          for lib in libass.so libplacebo.so; do
-            find "${{ env.BUILD_LIBS_DIR }}/lib" "${{ env.BUILD_LIBS_DIR }}/lib64" -name "$lib*" -exec cp {} "${{ env.PORTABLE_DIR }}/lib/" \;
+          cd ~/mpv-build/mpv-0.38.0
+          mkdir -p ~/mpv-install/usr
+          ninja -C build install DESTDIR=~/mpv-install || { echo "Installation failed"; exit 1; }
+
+      - name: Bundle all shared library dependencies
+        run: |
+          cd ~/mpv-install
+          mkdir -p usr/lib
+          cp ~/mpv-build/mpv-0.38.0/build/mpv usr/bin/mpv-bin
+          chmod +w usr/bin/mpv-bin
+          echo "Listing libraries required by mpv:"
+          ldd usr/bin/mpv-bin
+          ldd usr/bin/mpv-bin | grep -o '/[^ ]*\.so[^ ]*' | sort -u | while read lib; do
+            echo "Copying $lib"
+            cp -v "$lib" usr/lib/ || { echo "Error: Failed to copy $lib"; exit 1; }
           done
-          # Copy dependencies identified by ldd, but only from build_libs
-          ldd "${{ env.PORTABLE_DIR }}/bin/mpv" | grep -oP '(?<=> )[^ ]+' | while read -r lib; do
-            if [[ "$lib" == "${{ env.BUILD_LIBS_DIR }}"* && -f "$lib" ]]; then
-              cp "$lib" "${{ env.PORTABLE_DIR }}/lib/"
-            fi
-          done
-          # Verify dynamic linking
-          ldd "${{ env.PORTABLE_DIR }}/bin/mpv"
+          cp -v /usr/lib/x86_64-linux-gnu/libav*.so* usr/lib/ || { echo "Error: Failed to copy FFmpeg libs"; exit 1; }
+          cp -v /usr/lib/x86_64-linux-gnu/libpulse*.so* usr/lib/ || { echo "Error: Failed to copy PulseAudio libs"; exit 1; }
+          cp -v /usr/lib/x86_64-linux-gnu/libasound*.so* usr/lib/ || { echo "Error: Failed to copy ALSA libs"; exit 1; }
+          cp -v /lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 usr/lib/ || { echo "Error: Failed to copy linker"; exit 1; }
+          echo "Final library list in usr/lib:"
+          ls -l usr/lib/
 
-      # Create a runtime setup script
-      - name: Create runtime setup script
+      - name: Ensure RPATH with patchelf
         run: |
-          cat > "${{ env.PORTABLE_DIR }}/bin/setup-runtime.sh" <<EOF
+          echo "Patchelf version:"
+          patchelf --version
+          echo "Before patchelf:"
+          readelf -d ~/mpv-install/usr/bin/mpv-bin | grep RPATH || echo "No RPATH set initially"
+          ls -l ~/mpv-install/usr/bin/mpv-bin
+          sudo patchelf --force-rpath --set-rpath \$ORIGIN/../lib ~/mpv-install/usr/bin/mpv-bin || { echo "Patchelf failed"; exit 1; }
+          echo "After patchelf:"
+          readelf -d ~/mpv-install/usr/bin/mpv-bin | grep RPATH || { echo "RPATH not set after patchelf"; exit 1; }
+
+      - name: Create config directory
+        run: |
+          cd ~/mpv-install/usr
+          mkdir -p config/mpv
+          cat > config/mpv/mpv.conf << EOF
+          # Sample mpv configuration
+          vo=gpu
+          hwdec=auto
+          profile=high
+          ao=pulse,alsa
+          EOF
+          chmod 700 config/mpv/mpv.conf
+          ls -l config/mpv/
+
+      - name: Create launcher script
+        run: |
+          cd ~/mpv-install/usr/bin
+          cat > mpv << 'EOF'
           #!/bin/bash
-          # Check if /run/user/\$UID exists and is writable
-          if [ -d "/run/user/\${UID}" ] && [ -w "/run/user/\${UID}" ]; then
-            export XDG_RUNTIME_DIR="/run/user/\${UID}"
-          else
-            # Fallback to ~/.cache/mpv-run
-            XDG_RUNTIME_DIR="\$HOME/.cache/mpv-run"
-            mkdir -p "\$XDG_RUNTIME_DIR"
-            chmod 700 "\$XDG_RUNTIME_DIR"
+          DIR="$(dirname "$(realpath "$0")")"
+          # Debug environment
+          echo "Initial XDG_RUNTIME_DIR: ${XDG_RUNTIME_DIR:-unset}"
+          echo "UID: $UID"
+          # Set XDG_RUNTIME_DIR to a custom location if unset or if /run/user/$UID is inaccessible
+          if [ -z "$XDG_RUNTIME_DIR" ] || [ ! -w "$XDG_RUNTIME_DIR" ]; then
+            XDG_RUNTIME_DIR="/tmp/mpv-$UID"
+            mkdir -p "$XDG_RUNTIME_DIR/mpv" || { echo "Failed to create $XDG_RUNTIME_DIR/mpv"; exit 1; }
+            chmod 700 "$XDG_RUNTIME_DIR/mpv"
             export XDG_RUNTIME_DIR
+            echo "Set XDG_RUNTIME_DIR to $XDG_RUNTIME_DIR"
+          else
+            mkdir -p "$XDG_RUNTIME_DIR/mpv" || { echo "Failed to create $XDG_RUNTIME_DIR/mpv"; exit 1; }
+            chmod 700 "$XDG_RUNTIME_DIR/mpv"
+            echo "Using existing XDG_RUNTIME_DIR: $XDG_RUNTIME_DIR"
           fi
+          echo "Final XDG_RUNTIME_DIR: $XDG_RUNTIME_DIR"
+          ls -ld "$XDG_RUNTIME_DIR/mpv"
+          # Run mpv with explicit environment
+          env XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" \
+            "$DIR/../lib/ld-linux-x86-64.so.2" --library-path "$DIR/../lib" "$DIR/mpv-bin" \
+            --config-dir="$DIR/../config/mpv" \
+            "$@" || { echo "mpv failed to start"; exit 1; }
           EOF
-          chmod +x "${{ env.PORTABLE_DIR }}/bin/setup-runtime.sh"
+          chmod +x mpv
+          cat mpv
 
-      # Create a wrapper script to set LD_LIBRARY_PATH and run setup
-      - name: Create wrapper script
+      - name: Create zip file with binary and libraries
         run: |
-          cat > "${{ env.PORTABLE_DIR }}/bin/mpv-wrapper.sh" <<EOF
-          #!/bin/bash
-          SCRIPT_DIR=\$(dirname "\$(readlink -f "\$0")")
-          # Run runtime setup script
-          "\$SCRIPT_DIR/setup-runtime.sh"
-          # Launch MPV with bundled libraries
-          LD_LIBRARY_PATH="\$SCRIPT_DIR/../lib:\$LD_LIBRARY_PATH" "\$SCRIPT_DIR/mpv" "\$@"
-          EOF
-          chmod +x "${{ env.PORTABLE_DIR }}/bin/mpv-wrapper.sh"
+          cd ~/mpv-install
+          zip -r ~/mpv-0.38.0-void-bundled.zip .
 
-      # Package the portable binary
-      - name: Package portable binary
+      - name: Generate SHA256 checksum
         run: |
-          tar -czf mpv-portable.tar.gz -C "${{ env.PORTABLE_DIR }}" .
+          sha256sum ~/mpv-0.38.0-void-bundled.zip > ~/mpv-0.38.0-void-bundled.zip.sha256
+          cat ~/mpv-0.38.0-void-bundled.zip.sha256
 
-      # Upload portable binary artifact
-      - name: Upload portable binary
+      - name: Upload binary artifact
         uses: actions/upload-artifact@v4
         with:
-          name: mpv-portable
-          path: mpv-portable.tar.gz
+          name: mpv-void-bundled
+          path: |
+            ~/mpv-0.38.0-void-bundled.zip
+            ~/mpv-0.38.0-void-bundled.zip.sha256
