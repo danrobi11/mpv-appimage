@@ -26,7 +26,7 @@ jobs:
             libass-dev libbluray-dev libdvdnav-dev \
             libdvdread-dev libcdio-paranoia-dev \
             libpulse-dev libasound2-dev libva-dev libvdpau-dev \
-            libx11-dev libxext-dev libxss-dev \
+            libx11-dev libxext-dev libxss-dev libxpresent-dev \
             libxrandr-dev libxinerama-dev \
             libegl-dev libgl1-mesa-dev libgles2-mesa-dev \
             libwayland-dev wayland-protocols libxkbcommon-dev \
@@ -106,6 +106,7 @@ jobs:
           cp -v /usr/lib/x86_64-linux-gnu/libmujs*.so* usr/lib/ || { echo "Error: Failed to copy MuJS libs"; exit 1; }
           cp -v /usr/lib/x86_64-linux-gnu/libarchive*.so* usr/lib/ || { echo "Error: Failed to copy libarchive libs"; exit 1; }
           cp -v /usr/lib/x86_64-linux-gnu/liblua5.1*.so* usr/lib/ || { echo "Error: Failed to copy Lua libs"; exit 1; }
+          cp -v /usr/lib/x86_64-linux-gnu/libXpresent*.so* usr/lib/ || { echo "Error: Failed to copy Xpresent libs"; exit 1; }
           cp -v /lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 usr/lib/ || { echo "Error: Failed to copy linker"; exit 1; }
           echo "Final library list in usr/lib:"
           ls -l usr/lib/
