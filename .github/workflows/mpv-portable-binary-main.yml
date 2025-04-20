@@ -1,4 +1,4 @@
-name: Build mpv Bundled Binary for Void (PulseAudio-to-ALSA Fallback)
+name: Build mpv Bundled Binary for Void (ALSA-Only, X11 Video)
 
 on:
   push:
@@ -25,7 +25,7 @@ jobs:
             libswscale-dev libswresample-dev libavfilter-dev \
             libass-dev libbluray-dev libdvdnav-dev \
             libdvdread-dev libcdio-paranoia-dev \
-            libpulse-dev libasound2-dev libva-dev libvdpau-dev \
+            libasound2-dev libva-dev libvdpau-dev \
             libx11-dev libxext-dev libxss-dev libxpresent-dev \
             libxrandr-dev libxinerama-dev \
             libegl-dev libgl1-mesa-dev libgles2-mesa-dev \
@@ -38,21 +38,6 @@ jobs:
             libarchive-dev \
             mesa-opencl-icd mesa-vulkan-drivers libvulkan-dev \
             python3-dev python3-pip
-
-      - name: Diagnose PulseAudio version and library paths
-        run: |
-          echo "PulseAudio version:"
-          pkg-config --modversion libpulse
-          echo "PulseAudio library paths from pkg-config:"
-          pkg-config --libs libpulse
-          echo "Searching for libpulsecommon libraries:"
-          find /usr/lib* -name 'libpulsecommon*.so*' || echo "No libpulsecommon libraries found"
-          echo "Listing PulseAudio libraries in /usr/lib/x86_64-linux-gnu:"
-          ls -l /usr/lib/x86_64-linux-gnu/libpulse*.so* || echo "No libpulse libraries found"
-          echo "Listing PulseAudio common libraries in /usr/lib/x86_64-linux-gnu/pulseaudio:"
-          ls -l /usr/lib/x86_64-linux-gnu/pulseaudio/libpulsecommon*.so* || echo "No libpulsecommon libraries found"
-          echo "Listing PulseAudio libraries in /usr/lib/pulse*:"
-          find /usr/lib/pulse* -name '*.so*' || echo "No PulseAudio libraries found in /usr/lib/pulse*"
 
       - name: Clone mpv source from Git
         run: |
@@ -78,7 +63,7 @@ jobs:
             -Dcdda=enabled \
             -Duchardet=enabled \
             -Dlcms2=enabled \
-            -Dpulse=enabled \
+            -Dpulse=disabled \
             -Dalsa=enabled \
             -Dpipewire=enabled \
             -Dvaapi=enabled \
@@ -119,9 +104,6 @@ jobs:
           # Explicitly copy known libraries
           cp -v /usr/lib/x86_64-linux-gnu/libav*.so* usr/lib/ || { echo "Error: Failed to copy FFmpeg libs"; exit 1; }
           cp -v /usr/lib/x86_64-linux-gnu/libavfilter*.so* usr/lib/ || { echo "Error: Failed to copy libavfilter libs"; exit 1; }
-          cp -v /usr/lib/x86_64-linux-gnu/libpulse*.so* usr/lib/ || { echo "Error: Failed to copy PulseAudio libs"; exit 1; }
-          echo "Attempting to locate and copy libpulsecommon libraries:"
-          find /usr/lib* -name 'libpulsecommon*.so*' -exec cp -v {} usr/lib/ \; || { echo "Error: Failed to copy libpulsecommon libs"; exit 1; }
           cp -v /usr/lib/x86_64-linux-gnu/libasound*.so* usr/lib/ || { echo "Error: Failed to copy ALSA libs"; exit 1; }
           cp -v /usr/lib/x86_64-linux-gnu/libmujs*.so* usr/lib/ || { echo "Error: Failed to copy MuJS libs"; exit 1; }
           cp -v /usr/lib/x86_64-linux-gnu/libarchive*.so* usr/lib/ || { echo "Error: Failed to copy libarchive libs"; exit 1; }
@@ -143,8 +125,8 @@ jobs:
               done
             fi
           done
-          # Verify that libpulsecommon is present
-          ls usr/lib/libpulsecommon*.so* || { echo "Error: No libpulsecommon libraries found in usr/lib/"; exit 1; }
+          # Verify library integrity
+          ldd usr/bin/mpv-bin | grep "not found" && { echo "Error: Missing libraries detected"; exit 1; } || echo "All libraries resolved"
           echo "Final library list in usr/lib:"
           ls -l usr/lib/
 
@@ -158,6 +140,8 @@ jobs:
           sudo patchelf --force-rpath --set-rpath \$ORIGIN/../lib ~/mpv-install/usr/bin/mpv-bin || { echo "Patchelf failed"; exit 1; }
           echo "After patchelf:"
           readelf -d ~/mpv-install/usr/bin/mpv-bin | grep RPATH || { echo "RPATH not set after patchelf"; exit 1; }
+          # Verify RPATH functionality
+          ldd usr/bin/mpv-bin | grep "not found" && { echo "Error: Libraries not found after patchelf"; exit 1; } || echo "RPATH verification passed"
 
       - name: Create config directory
         run: |
@@ -167,7 +151,7 @@ jobs:
           # Sample mpv configuration
           vo=x11
           hwdec=auto
-          ao=pulse,alsa
+          ao=alsa
           EOF
           chmod 700 config/mpv/mpv.conf
           ls -l config/mpv/
