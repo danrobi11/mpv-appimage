@@ -81,8 +81,8 @@ Compatibility with AppImageLauncher may vary. Consider using [AM](https://github
 
 This is an unofficial build. For official releases and support, please refer to the mpv project.
 
-This repository contains a script for building the mpv-x86_64.AppImage.
-The script was created with assistance from Grok 3, an AI developed by xAI (https://grok.com).
+This repository contains scripts for building the mpv-x86_64.AppImage and the MPV dynamic portable binary.
+The scripts was created with assistance from Grok 3, an AI developed by xAI (https://grok.com).
 While efforts have been made to ensure the script functions correctly, it is provided "as is" without any warranties
 or guarantees of performance, reliability, or compatibility. Users are responsible for testing and verifying the script's output before use.
 Neither the repository owner nor xAI is liable for any issues, damages, or data loss that may arise from using this script or the resulting AppImage.
