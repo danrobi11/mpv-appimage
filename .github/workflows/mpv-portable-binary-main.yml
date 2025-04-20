@@ -1,4 +1,4 @@
-name: Build mpv Bundled Binary for Void
+name: Build mpv Bundled Binary for Void (ALSA-Only, X11 Video)
 
 on:
   push:
@@ -25,7 +25,7 @@ jobs:
             libswscale-dev libswresample-dev libavfilter-dev \
             libass-dev libbluray-dev libdvdnav-dev \
             libdvdread-dev libcdio-paranoia-dev \
-            libpulse-dev libasound2-dev libva-dev libvdpau-dev \
+            libasound2-dev libva-dev libvdpau-dev \
             libx11-dev libxext-dev libxss-dev libxpresent-dev \
             libxrandr-dev libxinerama-dev \
             libegl-dev libgl1-mesa-dev libgles2-mesa-dev \
@@ -63,7 +63,7 @@ jobs:
             -Dcdda=enabled \
             -Duchardet=enabled \
             -Dlcms2=enabled \
-            -Dpulse=enabled \
+            -Dpulse=disabled \
             -Dalsa=enabled \
             -Dpipewire=enabled \
             -Dvaapi=enabled \
@@ -104,8 +104,6 @@ jobs:
           # Explicitly copy known libraries
           cp -v /usr/lib/x86_64-linux-gnu/libav*.so* usr/lib/ || { echo "Error: Failed to copy FFmpeg libs"; exit 1; }
           cp -v /usr/lib/x86_64-linux-gnu/libavfilter*.so* usr/lib/ || { echo "Error: Failed to copy libavfilter libs"; exit 1; }
-          cp -v /usr/lib/x86_64-linux-gnu/libpulse*.so* usr/lib/ || { echo "Error: Failed to copy PulseAudio libs"; exit 1; }
-          find /usr/lib -name 'libpulsecommon*.so*' -exec cp -v {} usr/lib/ \; || { echo "Error: Failed to copy libpulsecommon libs"; exit 1; }
           cp -v /usr/lib/x86_64-linux-gnu/libasound*.so* usr/lib/ || { echo "Error: Failed to copy ALSA libs"; exit 1; }
           cp -v /usr/lib/x86_64-linux-gnu/libmujs*.so* usr/lib/ || { echo "Error: Failed to copy MuJS libs"; exit 1; }
           cp -v /usr/lib/x86_64-linux-gnu/libarchive*.so* usr/lib/ || { echo "Error: Failed to copy libarchive libs"; exit 1; }
@@ -127,8 +125,6 @@ jobs:
               done
             fi
           done
-          # Verify that libpulsecommon is present
-          ls usr/lib/libpulsecommon*.so* >/dev/null 2>&1 || { echo "Error: No libpulsecommon libraries found in usr/lib/"; exit 1; }
           echo "Final library list in usr/lib:"
           ls -l usr/lib/
 
@@ -149,9 +145,9 @@ jobs:
           mkdir -p config/mpv
           cat > config/mpv/mpv.conf << EOF
           # Sample mpv configuration
-          vo=gpu
+          vo=x11
           hwdec=auto
-          ao=pulse,alsa
+          ao=alsa
           EOF
           chmod 700 config/mpv/mpv.conf
           ls -l config/mpv/
