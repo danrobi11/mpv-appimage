@@ -41,16 +41,12 @@ jobs:
 
       - name: Clone mpv source from Git
         run: |
-          mkdir -p ~/mpv-build
-          cd ~/mpv-build
-          git clone https://github.com/mpv-player/mpv.git
-          cd mpv
-          git checkout master
+          git clone --depth 1 --branch master https://github.com/mpv-player/mpv.git mpv-build
+
 
       - name: Configure mpv with meson
+        working-directory: mpv-build
         run: |
-          cd ~/mpv-build/mpv
-          meson setup build \
             --prefix=/usr \
             -Dbuildtype=release \
             -Dlibmpv=true \
