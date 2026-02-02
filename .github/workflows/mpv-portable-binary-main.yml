@@ -1,11 +1,11 @@
 name: Build mpv Bundled Binary for Void (ALSA-Only, X11 Video)
 
 on:
+  workflow_dispatch:
   push:
     branches: [ main ]
   pull_request:
     branches: [ main ]
-  workflow_dispatch:
 
 jobs:
   build:
