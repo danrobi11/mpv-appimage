@@ -1,4 +1,4 @@
-name: Build mpv Bundled Binary for Void (ALSA-Only, X11 Video)
+name: Build mpv Bundled Binary (ALSA-Only, X11 Video)
 
 on:
   workflow_dispatch:
