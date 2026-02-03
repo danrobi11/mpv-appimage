@@ -16,15 +16,14 @@ jobs:
 
     steps:
     - name: Install dependencies
-      run:
-
+      run: |
         sudo apt update -y
         sudo apt install -y \
           build-essential curl tar pkg-config zip \
           git wget patchelf meson ninja-build \
           libavcodec-dev libavformat-dev libavutil-dev \
           libswscale-dev libswresample-dev libavfilter-dev \
-          libass-dev  \
+          libass-dev \
           libbluray-dev libdvdnav-dev \
           libdvdread-dev libcdio-paranoia-dev \
           libasound2-dev libva-dev libvdpau-dev \
@@ -84,10 +83,16 @@ jobs:
         cd ${{ env.SOURCE_DIR }}
         meson install -C ${{ env.BUILD_DIR }}
 
-    - name: Set relative RPATH with patchelf
+    - name: Create launcher script
       run: |
-        find ${{ env.INSTALL_DIR }}/bin -type f -executable -exec patchelf --set-rpath '$ORIGIN/../lib' {} \;
-        find ${{ env.INSTALL_DIR }}/lib -type f -name '*.so*' -exec patchelf --set-rpath '$ORIGIN' {} \; || true
+        mv ${{ env.INSTALL_DIR }}/bin/mpv ${{ env.INSTALL_DIR }}/bin/mpv.bin
+        cat << 'EOF' > ${{ env.INSTALL_DIR }}/bin/mpv
+        #!/bin/sh
+        DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
+        export LDlod_LIBRARY_PATH="$DIR/../lib${LD_LIBRARY_PATH:+:}$LD_LIBRARY_PATH"
+        exec "$DIR/mpv.bin" "$@"
+        EOF
+        chmod +x ${{ env.INSTALL_DIR }}/bin/mpv
 
     - name: Upload installation artifact
       uses: actions/upload-artifact@v4
