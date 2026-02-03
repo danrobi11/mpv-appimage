@@ -1,203 +1,90 @@
-name: Build mpv Bundled Binary (ALSA-Only, X11 Video)
+name: Build MPV with libmpv
 
 on:
   workflow_dispatch:
   push:
     branches: [ main ]
   pull_request:
-    branches: [ main ]
 
 jobs:
-  build:
+  build-mpv:
     runs-on: ubuntu-latest
+    env:
+      SOURCE_DIR: mpv-build
+      BUILD_DIR: build
+      INSTALL_DIR: ${{ github.workspace }}/mpv-install
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    - name: Install dependencies
+      run: |
+        sudo apt update -y
+        sudo apt install -y \
+          build-essential curl tar pkg-config zip \
+          git wget patchelf meson ninja-build \
+          libavcodec-dev libavformat-dev libavutil-dev \
+          libswscale-dev libswresample-dev libavfilter-dev \
+          libass-dev libbluray-dev libdvdnav-dev \
+          libdvdread-dev libcdio-paranoia-dev \
+          libasound2-dev libva-dev libvdpau-dev \
+          libx11-dev libxext-dev libxss-dev libxpresent-dev \
+          libxrandr-dev libxinerama-dev \
+          libegl-dev libgl1-mesa-dev libgles2-mesa-dev \
+          libwayland-dev wayland-protocols libxkbcommon-dev \
+          liblua5.1-dev libmujs-dev libjpeg-dev libpng-dev \
+          libfreetype6-dev libfontconfig-dev \
+          liblcms2-dev libuchardet-dev \
+          libopenal-dev libsndio-dev \
+          libpipewire-0.3-dev libplacebo-dev \
+          libarchive-dev \
+          mesa-opencl-icd mesa-vulkan-drivers libvulkan-dev \
+          python3-dev python3-pip
 
-      - name: Install build tools and dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            build-essential curl tar pkg-config zip \
-            git wget patchelf meson ninja-build \
-            libavcodec-dev libavformat-dev libavutil-dev \
-            libswscale-dev libswresample-dev libavfilter-dev \
-            libass-dev libbluray-dev libdvdnav-dev \
-            libdvdread-dev libcdio-paranoia-dev \
-            libasound2-dev libva-dev libvdpau-dev \
-            libx11-dev libxext-dev libxss-dev libxpresent-dev \
-            libxrandr-dev libxinerama-dev \
-            libegl-dev libgl1-mesa-dev libgles2-mesa-dev \
-            libwayland-dev wayland-protocols libxkbcommon-dev \
-            liblua5.1-dev libmujs-dev libjpeg-dev libpng-dev \
-            libfreetype6-dev libfontconfig-dev \
-            liblcms2-dev libuchardet-dev \
-            libopenal-dev libsndio-dev \
-            libpipewire-0.3-dev libplacebo-dev \
-            libarchive-dev \
-            mesa-opencl-icd mesa-vulkan-drivers libvulkan-dev \
-            python3-dev python3-pip
+    - name: Clone mpv source from Git
+      run: |
+        git clone --depth 1 --branch master https://github.com/mpv-player/mpv.git ${{ env.SOURCE_DIR }}
 
-      - name: Clone mpv source from Git
-        run: |
-          git clone --depth 1 --branch master https://github.com/mpv-player/mpv.git mpv-build
+    - name: Configure build with Meson
+      run: |
+        cd ${{ env.SOURCE_DIR }}
+        meson setup ${{ env.BUILD_DIR }} \
+          --prefix=${{ env.INSTALL_DIR }} \
+          -Dbuildtype=release \
+          -Dlibmpv=true \
+          -Dlua=enabled \
+          -Djavascript=enabled \
+          -Dlibarchive=enabled \
+          -Dlibbluray=enabled \
+          -Ddvbin=enabled \
+          -Ddvdnav=enabled \
+          -Dcdda=enabled \
+          -Duchardet=enabled \
+          -Dlcms2=enabled \
+          -Dpulse=disabled \
+          -Dalsa=enabled \
+          -Dpipewire=enabled \
+          -Dvaapi=enabled \
+          -Dvdpau=enabled \
+          -Dwayland=enabled \
+          -Dx11=enabled \
+          -Dgl=enabled \
+          -Degl=enabled \
+          -Dopenal=enabled \
+          -Dsndio=enabled \
+          -Dvulkan=enabled
 
+    - name: Compile
+      run: |
+        cd ${{ env.SOURCE_DIR }}
+        meson compile -C ${{ env.BUILD_DIR }}
 
-      - name: Configure mpv with meson
-        working-directory: mpv-build
-        run: |
-            --prefix=/usr \
-            -Dbuildtype=release \
-            -Dlibmpv=true \
-            -Dlua=enabled \
-            -Djavascript=enabled \
-            -Dlibarchive=enabled \
-            -Dlibbluray=enabled \
-            -Ddvbin=enabled \
-            -Ddvdnav=enabled \
-            -Dcdda=enabled \
-            -Duchardet=enabled \
-            -Dlcms2=enabled \
-            -Dpulse=disabled \
-            -Dalsa=enabled \
-            -Dpipewire=enabled \
-            -Dvaapi=enabled \
-            -Dvdpau=enabled \
-            -Dwayland=enabled \
-            -Dx11=enabled \
-            -Dgl=enabled \
-            -Degl=enabled \
-            -Dopenal=enabled \
-            -Dsndio=enabled \
-            -Dvulkan=enabled \
-            || { echo "Meson configuration failed"; exit 1; }
+    - name: Install to local directory
+      run: |
+        cd ${{ env.SOURCE_DIR }}
+        meson install -C ${{ env.BUILD_DIR }}
 
-      - name: Build mpv
-        run: |
-          cd ~/mpv-build/mpv
-          ninja -C build || { echo "Build failed"; exit 1; }
-
-      - name: Install mpv to a staging directory
-        run: |
-          cd ~/mpv-build/mpv
-          mkdir -p /home/runner/mpv-install/usr
-          DESTDIR=/home/runner/mpv-install ninja -C build install || { echo "Installation failed"; exit 1; }
-
-      - name: Bundle all shared library dependencies
-        run: |
-          cd ~/mpv-install
-          mkdir -p usr/lib
-          cp ~/mpv-build/mpv/build/mpv usr/bin/mpv-bin
-          chmod +w usr/bin/mpv-bin
-          echo "Listing libraries required by mpv:"
-          ldd usr/bin/mpv-bin
-          # Copy directly linked libraries
-          ldd usr/bin/mpv-bin | grep -o '/[^ ]*\.so[^ ]*' | sort -u | while read lib; do
-            echo "Copying $lib"
-            cp -v "$lib" usr/lib/ || { echo "Error: Failed to copy $lib"; exit 1; }
-          done
-          # Explicitly copy known libraries
-          cp -v /usr/lib/x86_64-linux-gnu/libav*.so* usr/lib/ || { echo "Error: Failed to copy FFmpeg libs"; exit 1; }
-          cp -v /usr/lib/x86_64-linux-gnu/libavfilter*.so* usr/lib/ || { echo "Error: Failed to copy libavfilter libs"; exit 1; }
-          cp -v /usr/lib/x86_64-linux-gnu/libasound*.so* usr/lib/ || { echo "Error: Failed to copy ALSA libs"; exit 1; }
-          cp -v /usr/lib/x86_64-linux-gnu/libmujs*.so* usr/lib/ || { echo "Error: Failed to copy MuJS libs"; exit 1; }
-          cp -v /usr/lib/x86_64-linux-gnu/libarchive*.so* usr/lib/ || { echo "Error: Failed to copy libarchive libs"; exit 1; }
-          cp -v /usr/lib/x86_64-linux-gnu/liblua5.1*.so* usr/lib/ || { echo "Error: Failed to copy Lua libs"; exit 1; }
-          cp -v /usr/lib/x86_64-linux-gnu/libXpresent*.so* usr/lib/ || { echo "Error: Failed to copy Xpresent libs"; exit 1; }
-          cp -v /usr/lib/x86_64-linux-gnu/libGL*.so* usr/lib/ || { echo "Error: Failed to copy OpenGL libs"; exit 1; }
-          cp -v /usr/lib/x86_64-linux-gnu/libEGL*.so* usr/lib/ || { echo "Error: Failed to copy EGL libs"; exit 1; }
-          cp -v /usr/lib/x86_64-linux-gnu/libvulkan*.so* usr/lib/ || { echo "Error: Failed to copy Vulkan libs"; exit 1; }
-          cp -v /lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 usr/lib/ || { echo "Error: Failed to copy linker"; exit 1; }
-          # Copy transitive dependencies of explicitly copied libraries
-          for lib in usr/lib/*.so*; do
-            if [ -f "$lib" ]; then
-              echo "Checking transitive dependencies for $lib"
-              ldd "$lib" | grep -o '/[^ ]*\.so[^ ]*' | sort -u | while read dep; do
-                if [ -f "$dep" ] && [ ! -f "usr/lib/$(basename "$dep")" ]; then
-                  echo "Copying transitive dependency $dep"
-                  cp -v "$dep" usr/lib/ || { echo "Error: Failed to copy $dep"; exit 1; }
-                fi
-              done
-            fi
-          done
-          # Verify library integrity
-          ldd usr/bin/mpv-bin | grep "not found" && { echo "Error: Missing libraries detected"; exit 1; } || echo "All libraries resolved"
-          echo "Final library list in usr/lib:"
-          ls -l usr/lib/
-
-      - name: Ensure RPATH with patchelf
-        run: |
-          echo "Patchelf version:"
-          patchelf --version
-          echo "Before patchelf:"
-          readelf -d ~/mpv-install/usr/bin/mpv-bin | grep RPATH || echo "No RPATH set initially"
-          ls -l ~/mpv-install/usr/bin/mpv-bin
-          sudo patchelf --force-rpath --set-rpath \$ORIGIN/../lib ~/mpv-install/usr/bin/mpv-bin || { echo "Patchelf failed"; exit 1; }
-          echo "After patchelf:"
-          readelf -d ~/mpv-install/usr/bin/mpv-bin | grep RPATH || { echo "RPATH not set after patchelf"; exit 1; }
-          # Verify RPATH functionality
-          ldd usr/bin/mpv-bin | grep "not found" && { echo "Error: Libraries not found after patchelf"; exit 1; } || echo "RPATH verification passed"
-
-      - name: Create config directory
-        run: |
-          cd ~/mpv-install/usr
-          mkdir -p config/mpv
-          cat > config/mpv/mpv.conf << EOF
-          # Sample mpv configuration
-          vo=x11
-          hwdec=auto
-          ao=alsa
-          EOF
-          chmod 700 config/mpv/mpv.conf
-          ls -l config/mpv/
-
-      - name: Create launcher script
-        run: |
-          cd ~/mpv-install/usr/bin
-          cat > mpv << 'EOF'
-          #!/bin/bash
-          DIR="$(dirname "$(realpath "$0")")"
-          # Debug environment
-          echo "Initial XDG_RUNTIME_DIR: ${XDG_RUNTIME_DIR:-unset}"
-          echo "UID: $UID"
-          # Set XDG_RUNTIME_DIR to a custom location if unset or if /run/user/$UID is inaccessible
-          if [ -z "$XDG_RUNTIME_DIR" ] || [ ! -w "$XDG_RUNTIME_DIR" ]; then
-            XDG_RUNTIME_DIR="/tmp/mpv-$UID"
-            mkdir -p "$XDG_RUNTIME_DIR/mpv" || { echo "Failed to create $XDG_RUNTIME_DIR/mpv"; exit 1; }
-            chmod 700 "$XDG_RUNTIME_DIR/mpv"
-            export XDG_RUNTIME_DIR
-            echo "Set XDG_RUNTIME_DIR to $XDG_RUNTIME_DIR"
-          else
-            mkdir -p "$XDG_RUNTIME_DIR/mpv" || { echo "Failed to create $XDG_RUNTIME_DIR/mpv"; exit 1; }
-            chmod 700 "$XDG_RUNTIME_DIR/mpv"
-            echo "Using existing XDG_RUNTIME_DIR: $XDG_RUNTIME_DIR"
-          fi
-          echo "Final XDG_RUNTIME_DIR: $XDG_RUNTIME_DIR"
-          ls -ld "$XDG_RUNTIME_DIR/mpv"
-          # Run mpv with explicit environment
-          env XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" \
-            "$DIR/../lib/ld-linux-x86-64.so.2" --library-path "$DIR/../lib" "$DIR/mpv-bin" \
-            --config-dir="$DIR/../config/mpv" \
-            "$@" || { echo "mpv failed to start"; exit 1; }
-          EOF
-          chmod +x mpv
-          cat mpv
-
-      - name: Create zip file with binary and libraries
-        run: |
-          cd ~/mpv-install
-          zip -r ~/mpv-void-bundled.zip .
-
-      - name: Generate SHA256 checksum
-        run: |
-          sha256sum ~/mpv-void-bundled.zip > ~/mpv-void-bundled.zip.sha256
-          cat ~/mpv-void-bundled.zip.sha256
-
-      - name: Upload binary artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: mpv-void-bundled
-          path: |
-            ~/mpv-void-bundled.zip
-            ~/mpv-void-bundled.zip.sha256
+    - name: Upload installation artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: mpv-install
+        path: ${{ env.INSTALL_DIR }}
+        retention-days: 30
