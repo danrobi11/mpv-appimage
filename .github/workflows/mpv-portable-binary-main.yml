@@ -125,6 +125,27 @@ jobs:
           done
         done
 
+    - name: Remove any accidentally bundled conflicting core libraries
+      run: |
+        rm -fv ${{ env.INSTALL_DIR }}/lib/libc.so.* \
+               ${{ env.INSTALL_DIR }}/lib/libm.so.* \
+               ${{ env.INSTALL_DIR }}/lib/libpthread.so.* \
+               ${{ env.INSTALL_DIR }}/lib/librt.so.* \
+               ${{ env.INSTALL_DIR }}/lib/libdl.so.* \
+               ${{ env.INSTALL_DIR }}/lib/libutil.so.* \
+               ${{ env.INSTALL_DIR }}/lib/libresolv.so.* \
+               ${{ env.INSTALL_DIR }}/lib/libcrypt.so.* \
+               ${{ env.INSTALL_DIR }}/lib/libnss_* \
+               ${{ env.INSTALL_DIR }}/lib/ld-linux-x86-64.so.* \
+               ${{ env.INSTALL_DIR }}/lib/libgcc_s.so.* \
+               ${{ env.INSTALL_DIR }}/lib/libstdc++.so.* \
+               ${{ env.INSTALL_DIR }}/lib/libanl.so.* \
+               ${{ env.INSTALL_DIR }}/lib/libBrokenLocale.so.* \
+               ${{ env.INSTALL_DIR }}/lib/libthread_db.so.* \
+               ${{ env.INSTALL_DIR }}/lib/libmemusage.so.* \
+               ${{ env.INSTALL_DIR }}/lib/libpcprofile.so.* \
+               ${{ env.INSTALL_DIR }}/lib/libSegFault.so.*
+
     - name: Create launcher script
       run: |
         mv ${{ env.INSTALL_DIR }}/bin/mpv ${{ env.INSTALL_DIR }}/bin/mpv.bin
