@@ -16,14 +16,16 @@ jobs:
 
     steps:
     - name: Install dependencies
-      run: |
+      run:
+
         sudo apt update -y
         sudo apt install -y \
           build-essential curl tar pkg-config zip \
           git wget patchelf meson ninja-build \
           libavcodec-dev libavformat-dev libavutil-dev \
           libswscale-dev libswresample-dev libavfilter-dev \
-          libass-dev libbluray-dev libdvdnav-dev \
+          libass-dev  \
+          libbluray-dev libdvdnav-dev \
           libdvdread-dev libcdio-paranoia-dev \
           libasound2-dev libva-dev libvdpau-dev \
           libx11-dev libxext-dev libxss-dev libxpresent-dev \
@@ -81,6 +83,11 @@ jobs:
       run: |
         cd ${{ env.SOURCE_DIR }}
         meson install -C ${{ env.BUILD_DIR }}
+
+    - name: Set relative RPATH with patchelf
+      run: |
+        find ${{ env.INSTALL_DIR }}/bin -type f -executable -exec patchelf --set-rpath '$ORIGIN/../lib' {} \;
+        find ${{ env.INSTALL_DIR }}/lib -type f -name '*.so*' -exec patchelf --set-rpath '$ORIGIN' {} \; || true
 
     - name: Upload installation artifact
       uses: actions/upload-artifact@v4
