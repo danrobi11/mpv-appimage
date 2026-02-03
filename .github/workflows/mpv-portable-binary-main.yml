@@ -83,14 +83,49 @@ jobs:
         cd ${{ env.SOURCE_DIR }}
         meson install -C ${{ env.BUILD_DIR }}
 
+    - name: Bundle shared libraries into installation
+      run: |
+        mkdir -p ${{ env.INSTALL_DIR }}/lib
+        EXCLUDE="libc.so libm.so libpthread.so librt.so libdl.so ld-linux-x86-64.so libgcc_s.so libstdc++.so libutil.so libnss_ libnsl.so libresolv.so libvulkan.so libva.so libva-drm.so libva-x11.so libva-wayland.so libvdpau.so libGL.so libEGL.so libGLES libdrm.so libgbm.so"
+        FILES="${{ env.INSTALL_DIR }}/bin/mpv ${{ env.INSTALL_DIR }}/lib/libmpv.so*"
+        for file in $FILES; do
+          if [ -f "$file" ]; then
+            ldd "$file" 2>/dev/null | grep '=>' | awk '{print $3}' | sort -u | while read lib; do
+              if [ -f "$lib" ]; then
+                base=$(basename "$lib")
+                if echo "$EXCLUDE" | grep -qw "$base"; then
+                  echo "Skipping core/graphics library: $base"
+                else
+                  cp -Lv --no-clobber "$lib" ${{ env.INSTALL_DIR }}/lib/ || true
+                fi
+              fi
+            done
+          fi
+        done
+        # Second pass for dependencies of bundled libraries
+        for so in ${{ env.INSTALL_DIR }}/lib/*.so*; do
+          if [ -f "$so" ]; then
+            ldd "$so" 2>/dev/null | grep '=>' | awk '{print $3}' | sort -u | while read lib; do
+              if [ -f "$lib" ]; then
+                base=$(basename "$lib")
+                if echo "$EXCLUDE" | grep -qw "$base"; then
+                  echo "Skipping core/graphics library: $base"
+                else
+                  cp -Lv --no-clobber "$lib" ${{ env.INSTALL_DIR }}/lib/ || true
+                fi
+              fi
+            done
+          fi
+        done
+
     - name: Create launcher script
       run: |
         mv ${{ env.INSTALL_DIR }}/bin/mpv ${{ env.INSTALL_DIR }}/bin/mpv.bin
         cat << 'EOF' > ${{ env.INSTALL_DIR }}/bin/mpv
         #!/bin/sh
-        DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
-        export LDlod_LIBRARY_PATH="$DIR/../lib${LD_LIBRARY_PATH:+:}$LD_LIBRARY_PATH"
-        exec "$DIR/mpv.bin" "$@"
+        SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+        export LD_LIBRARY_PATH="${SCRIPT_DIR}/../lib${LD_LIBRARY_PATH:+:}${LD_LIBRARY_PATH}"
+        exec "${SCRIPT_DIR}/mpv.bin" "$@"
         EOF
         chmod +x ${{ env.INSTALL_DIR }}/bin/mpv
 
