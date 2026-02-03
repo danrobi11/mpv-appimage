@@ -86,36 +86,43 @@ jobs:
     - name: Bundle shared libraries into installation
       run: |
         mkdir -p ${{ env.INSTALL_DIR }}/lib
-        EXCLUDE="libc.so libm.so libpthread.so librt.so libdl.so ld-linux-x86-64.so libgcc_s.so libstdc++.so libutil.so libnss_ libnsl.so libresolv.so libvulkan.so libva.so libva-drm.so libva-x11.so libva-wayland.so libvdpau.so libGL.so libEGL.so libGLES libdrm.so libgbm.so"
+        EXCLUDE="libc.so.6 libm.so.6 libpthread.so.0 librt.so.1 libdl.so.2 ld-linux-x86-64.so.2 libutil.so.1 libresolv.so.2 libcrypt.so.1 libcrypt.so.2 libnss_compat.so.2 libnss_dns.so.2 libnss_files.so.2 libnss_nis.so.2 libnss_hesiod.so.2 libanl.so.1 libBrokenLocale.so.1 libthread_db.so.1 libmemusage.so libpcprofile.so libSegFault.so libgcc_s.so.1 libstdc++.so.6 libvulkan.so.1 libva.so.2 libva-drm.so.2 libva-x11.so.2 libva-wayland.so.2 libvdpau.so.1 libGL.so.1 libGLX.so.0 libGLdispatch.so.0 libEGL.so.1 libGLESv2.so.2 libdrm.so.2 libgbm.so.1"
         FILES="${{ env.INSTALL_DIR }}/bin/mpv ${{ env.INSTALL_DIR }}/lib/libmpv.so*"
         for file in $FILES; do
           if [ -f "$file" ]; then
             ldd "$file" 2>/dev/null | grep '=>' | awk '{print $3}' | sort -u | while read lib; do
               if [ -f "$lib" ]; then
                 base=$(basename "$lib")
-                if echo "$EXCLUDE" | grep -qw "$base"; then
-                  echo "Skipping core/graphics library: $base"
+                if echo " $EXCLUDE " | grep -qw " $base "; then
+                  echo "Skipping system/core library: $base"
                 else
-                  cp -Lv --no-clobber "$lib" ${{ env.INSTALL_DIR }}/lib/ || true
+                  cp -Lv --parents --no-clobber "$lib" ${{ env.INSTALL_DIR }}/lib/ || true
                 fi
               fi
             done
           fi
         done
-        # Second pass for dependencies of bundled libraries
-        for so in ${{ env.INSTALL_DIR }}/lib/*.so*; do
-          if [ -f "$so" ]; then
-            ldd "$so" 2>/dev/null | grep '=>' | awk '{print $3}' | sort -u | while read lib; do
-              if [ -f "$lib" ]; then
-                base=$(basename "$lib")
-                if echo "$EXCLUDE" | grep -qw "$base"; then
-                  echo "Skipping core/graphics library: $base"
-                else
-                  cp -Lv --no-clobber "$lib" ${{ env.INSTALL_DIR }}/lib/ || true
+        # Recursive pass for dependencies of bundled libraries
+        changed=1
+        while [ "$changed" = "1" ]; do
+          changed=0
+          for so in ${{ env.INSTALL_DIR }}/lib/*.so*; do
+            if [ -f "$so" ]; then
+              ldd "$so" 2>/dev/null | grep '=>' | awk '{print $3}' | sort -u | while read lib; do
+                if [ -f "$lib" ]; then
+                  base=$(basename "$lib")
+                  if echo " $EXCLUDE " | grep -qw " $base "; then
+                    echo "Skipping system/core library: $base"
+                  else
+                    if [ ! -f "${{ env.INSTALL_DIR }}/lib/$base" ]; then
+                      cp -Lv --parents --no-clobber "$lib" ${{ env.INSTALL_DIR }}/lib/ || true
+                      changed=1
+                    fi
+                  fi
                 fi
-              fi
-            done
-          fi
+              done
+            fi
+          done
         done
 
     - name: Create launcher script
