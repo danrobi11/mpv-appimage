@@ -39,11 +39,9 @@ jobs:
           libarchive-dev \
           mesa-opencl-icd mesa-vulkan-drivers libvulkan-dev \
           python3-dev python3-pip
-
     - name: Clone mpv source from Git
       run: |
         git clone --depth 1 --branch master https://github.com/mpv-player/mpv.git ${{ env.SOURCE_DIR }}
-
     - name: Configure build with Meson
       run: |
         cd ${{ env.SOURCE_DIR }}
@@ -72,23 +70,19 @@ jobs:
           -Dopenal=enabled \
           -Dsndio=enabled \
           -Dvulkan=enabled
-
     - name: Compile
       run: |
         cd ${{ env.SOURCE_DIR }}
         meson compile -C ${{ env.BUILD_DIR }}
-
     - name: Install to local directory
       run: |
         cd ${{ env.SOURCE_DIR }}
         meson install -C ${{ env.BUILD_DIR }}
-
     - name: Bundle shared libraries into installation
       run: |
         mkdir -p ${{ env.INSTALL_DIR }}/lib
         # Extensive exclusion list: glibc/core, ALSA, graphics/driver interfaces, audio backends, X11 extensions
-        # Added librubberband.so.2 (optional via FFmpeg, often problematic in portable builds)
-        EXCLUDE="libc.so libm.so libpthread.so librt.so libdl.so ld-linux-x86-64.so libutil.so libresolv.so libcrypt.so libnss_ libgcc_s.so libstdc++.so libasound.so libopenal.so libpipewire libsndio.so libX11.so libXss.so libXpresent.so libXext.so libXrandr.so libXinerama.so libvulkan.so libva.so libva-drm.so libva-x11.so libva-wayland.so libvdpau.so libGL.so libGLX.so libGLdispatch.so libEGL.so libGLES libdrm.so libgbm.so librubberband.so.2"
+        EXCLUDE="libc.so libm.so libpthread.so librt.so libdl.so ld-linux-x86-64.so libutil.so libresolv.so libcrypt.so libnss_ libgcc_s.so libstdc++.so libasound.so libopenal.so libpipewire libsndio.so libX11.so libXss.so libXpresent.so libXext.so libXrandr.so libXinerama.so libvulkan.so libva.so libva-drm.so libva-x11.so libva-wayland.so libvdpau.so libGL.so libGLX.so libGLdispatch.so libEGL.so libGLES libdrm.so libgbm.so"
         FILES="${{ env.INSTALL_DIR }}/bin/mpv ${{ env.INSTALL_DIR }}/lib/libmpv.so*"
         # Initial pass: dependencies of mpv and libmpv
         for file in $FILES; do
@@ -121,50 +115,36 @@ jobs:
             done
           done
         done
-
-    - name: Remove unnecessary optional dependency (rubberband)
-      run: |
-        for lib in ${{ env.INSTALL_DIR }}/lib/libavfilter*.so*; do
-          [ -f "$lib" ] || continue
-          patchelf --remove-needed librubberband.so.2 "$lib"
-        done
-
-    - name: Restructure libraries into bin/lib (to avoid ../lib notation)
-      run: |
-        mv ${{ env.INSTALL_DIR }}/lib ${{ env.INSTALL_DIR }}/bin/lib
-
     - name: Remove any accidentally bundled conflicting core libraries
       run: |
-        rm -fv ${{ env.INSTALL_DIR }}/bin/lib/libc.so.* \
-               ${{ env.INSTALL_DIR }}/bin/lib/libm.so.* \
-               ${{ env.INSTALL_DIR }}/bin/lib/libpthread.so.* \
-               ${{ env.INSTALL_DIR }}/bin/lib/librt.so.* \
-               ${{ env.INSTALL_DIR }}/bin/lib/libdl.so.* \
-               ${{ env.INSTALL_DIR }}/bin/lib/libutil.so.* \
-               ${{ env.INSTALL_DIR }}/bin/lib/libresolv.so.* \
-               ${{ env.INSTALL_DIR }}/bin/lib/libcrypt.so.* \
-               ${{ env.INSTALL_DIR }}/bin/lib/libnss_* \
-               ${{ env.INSTALL_DIR }}/bin/lib/ld-linux-x86-64.so.* \
-               ${{ env.INSTALL_DIR }}/bin/lib/libgcc_s.so.* \
-               ${{ env.INSTALL_DIR }}/bin/lib/libstdc++.so.* \
-               ${{ env.INSTALL_DIR }}/bin/lib/libanl.so.* \
-               ${{ env.INSTALL_DIR }}/bin/lib/libBrokenLocale.so.* \
-               ${{ env.INSTALL_DIR }}/bin/lib/libthread_db.so.* \
-               ${{ env.INSTALL_DIR }}/bin/lib/libmemusage.so.* \
-               ${{ env.INSTALL_DIR }}/bin/lib/libpcprofile.so.* \
-               ${{ env.INSTALL_DIR }}/bin/lib/libSegFault.so.*
-
+        rm -fv ${{ env.INSTALL_DIR }}/lib/libc.so.* \
+               ${{ env.INSTALL_DIR }}/lib/libm.so.* \
+               ${{ env.INSTALL_DIR }}/lib/libpthread.so.* \
+               ${{ env.INSTALL_DIR }}/lib/librt.so.* \
+               ${{ env.INSTALL_DIR }}/lib/libdl.so.* \
+               ${{ env.INSTALL_DIR }}/lib/libutil.so.* \
+               ${{ env.INSTALL_DIR }}/lib/libresolv.so.* \
+               ${{ env.INSTALL_DIR }}/lib/libcrypt.so.* \
+               ${{ env.INSTALL_DIR }}/lib/libnss_* \
+               ${{ env.INSTALL_DIR }}/lib/ld-linux-x86-64.so.* \
+               ${{ env.INSTALL_DIR }}/lib/libgcc_s.so.* \
+               ${{ env.INSTALL_DIR }}/lib/libstdc++.so.* \
+               ${{ env.INSTALL_DIR }}/lib/libanl.so.* \
+               ${{ env.INSTALL_DIR }}/lib/libBrokenLocale.so.* \
+               ${{ env.INSTALL_DIR }}/lib/libthread_db.so.* \
+               ${{ env.INSTALL_DIR }}/lib/libmemusage.so.* \
+               ${{ env.INSTALL_DIR }}/lib/libpcprofile.so.* \
+               ${{ env.INSTALL_DIR }}/lib/libSegFault.so.*
     - name: Create launcher script
       run: |
         mv ${{ env.INSTALL_DIR }}/bin/mpv ${{ env.INSTALL_DIR }}/bin/mpv.bin
         cat << 'EOF' > ${{ env.INSTALL_DIR }}/bin/mpv
         #!/bin/sh
         SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-        export LD_LIBRARY_PATH="${SCRIPT_DIR}/lib${LD_LIBRARY_PATH:+:}${LD_LIBRARY_PATH}"
+        export LD_LIBRARY_PATH="${SCRIPT_DIR}/../lib${LD_LIBRARY_PATH:+:}${LD_LIBRARY_PATH}"
         exec "${SCRIPT_DIR}/mpv.bin" "$@"
         EOF
         chmod +x ${{ env.INSTALL_DIR }}/bin/mpv
-
     - name: Upload installation artifact
       uses: actions/upload-artifact@v4
       with:
