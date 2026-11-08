@@ -9,40 +9,43 @@ on:
 jobs:
   build-mpv:
     runs-on: ubuntu-latest
+    container: fedora:latest          # or fedora:rawhide
     env:
       SOURCE_DIR: mpv-build
       BUILD_DIR: build
       INSTALL_DIR: ${{ github.workspace }}/mpv-install
 
     steps:
-    - name: Install dependencies
+    - name: Install build dependencies
       run: |
-        sudo apt update -y
-        sudo apt install -y \
-          build-essential curl tar pkg-config zip \
-          git wget patchelf meson ninja-build \
-          libavcodec-dev libavformat-dev libavutil-dev \
-          libswscale-dev libswresample-dev libavfilter-dev \
-          libass-dev \
-          libbluray-dev libdvdnav-dev \
-          libdvdread-dev libcdio-paranoia-dev \
-          libasound2-dev libva-dev libvdpau-dev \
-          libx11-dev libxext-dev libxss-dev libxpresent-dev \
-          libxrandr-dev libxinerama-dev \
-          libegl-dev libgl1-mesa-dev libgles2-mesa-dev \
-          libwayland-dev wayland-protocols libxkbcommon-dev \
-          liblua5.1-dev libmujs-dev libjpeg-dev libpng-dev \
-          libfreetype6-dev libfontconfig-dev \
-          liblcms2-dev libuchardet-dev \
-          libopenal-dev libsndio-dev \
-          libpipewire-0.3-dev libplacebo-dev \
-          libarchive-dev \
-          mesa-opencl-icd mesa-vulkan-drivers libvulkan-dev \
-          python3-dev python3-pip
-    - name: Clone mpv source from Git
+        dnf -y update
+        dnf -y install \
+          gcc gcc-c++ make meson ninja-build pkgconf-pkg-config \
+          git wget patchelf zip \
+          ffmpeg-devel libass-devel libbluray-devel \
+          libdvdnav-devel libdvdread-devel libcdio-paranoia-devel \
+          alsa-lib-devel libva-devel libvdpau-devel \
+          libX11-devel libXext-devel libXScrnSaver-devel libXpresent-devel \
+          libXrandr-devel libXinerama-devel \
+          libglvnd-devel mesa-libEGL-devel mesa-libGL-devel mesa-libGLES-devel \
+          wayland-devel wayland-protocols libxkbcommon-devel \
+          lua-devel mujs-devel libjpeg-turbo-devel libpng-devel \
+          freetype-devel fontconfig-devel lcms2-devel uchardet-devel \
+          openal-soft-devel libsndio-devel pipewire-devel \
+          libarchive-devel vulkan-devel python3-devel \
+          mesa-vulkan-drivers
+
+    - name: Clone mpv
       run: |
         git clone --depth 1 --branch master https://github.com/mpv-player/mpv.git ${{ env.SOURCE_DIR }}
-    - name: Configure build with Meson
+
+    - name: Clone libplacebo as meson subproject (static)
+      run: |
+        mkdir -p ${{ env.SOURCE_DIR }}/subprojects
+        git clone --depth 1 --recursive https://code.videolan.org/videolan/libplacebo.git \
+          ${{ env.SOURCE_DIR }}/subprojects/libplacebo
+
+    - name: Configure with Meson
       run: |
         cd ${{ env.SOURCE_DIR }}
         meson setup ${{ env.BUILD_DIR }} \
@@ -70,21 +73,23 @@ jobs:
           -Dopenal=enabled \
           -Dsndio=enabled \
           -Dvulkan=enabled
+
     - name: Compile
       run: |
         cd ${{ env.SOURCE_DIR }}
         meson compile -C ${{ env.BUILD_DIR }}
-    - name: Install to local directory
+
+    - name: Install
       run: |
         cd ${{ env.SOURCE_DIR }}
         meson install -C ${{ env.BUILD_DIR }}
-    - name: Bundle shared libraries into installation
+
+    - name: Bundle shared libraries
       run: |
         mkdir -p ${{ env.INSTALL_DIR }}/lib
-        # Extensive exclusion list: glibc/core, ALSA, graphics/driver interfaces, audio backends, X11 extensions
+        # Core / driver / audio / X11 libraries we deliberately leave on the host
         EXCLUDE="libc.so libm.so libpthread.so librt.so libdl.so ld-linux-x86-64.so libutil.so libresolv.so libcrypt.so libnss_ libgcc_s.so libstdc++.so libasound.so libopenal.so libpipewire libsndio.so libX11.so libXss.so libXpresent.so libXext.so libXrandr.so libXinerama.so libvulkan.so libva.so libva-drm.so libva-x11.so libva-wayland.so libvdpau.so libGL.so libGLX.so libGLdispatch.so libEGL.so libGLES libdrm.so libgbm.so"
         FILES="${{ env.INSTALL_DIR }}/bin/mpv ${{ env.INSTALL_DIR }}/lib/libmpv.so*"
-        # Initial pass: dependencies of mpv and libmpv
         for file in $FILES; do
           [ -f "$file" ] || continue
           ldd "$file" | grep '=>' | awk '{print $3}' | sort -u | while read libpath; do
@@ -97,7 +102,7 @@ jobs:
             fi
           done
         done
-        # Recursive passes for dependencies of bundled libraries
+        # recursive pass
         changed=1
         while [ "$changed" = "1" ]; do
           changed=0
@@ -115,7 +120,8 @@ jobs:
             done
           done
         done
-    - name: Remove any accidentally bundled conflicting core libraries
+
+    - name: Remove accidentally bundled core libraries
       run: |
         rm -fv ${{ env.INSTALL_DIR }}/lib/libc.so.* \
                ${{ env.INSTALL_DIR }}/lib/libm.so.* \
@@ -135,7 +141,8 @@ jobs:
                ${{ env.INSTALL_DIR }}/lib/libmemusage.so.* \
                ${{ env.INSTALL_DIR }}/lib/libpcprofile.so.* \
                ${{ env.INSTALL_DIR }}/lib/libSegFault.so.*
-    - name: Create launcher script
+
+    - name: Create launcher
       run: |
         mv ${{ env.INSTALL_DIR }}/bin/mpv ${{ env.INSTALL_DIR }}/bin/mpv.bin
         cat << 'EOF' > ${{ env.INSTALL_DIR }}/bin/mpv
@@ -145,8 +152,9 @@ jobs:
         exec "${SCRIPT_DIR}/mpv.bin" "$@"
         EOF
         chmod +x ${{ env.INSTALL_DIR }}/bin/mpv
-    - name: Upload installation artifact
-      uses: actions/upload-artifact@v4
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v7
       with:
         name: mpv-install
         path: ${{ env.INSTALL_DIR }}
